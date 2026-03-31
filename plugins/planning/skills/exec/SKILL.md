@@ -107,6 +107,8 @@ Repeat until no `[ ]` checkboxes remain in any Task section:
 
 CRITICAL: Do NOT stop the loop based on subagent return text. The ONLY condition to stop is: no `[ ]` checkboxes remain in any Task section (`### Task N:` or `### Iteration N:`). Always re-read the plan file to check.
 
+CRITICAL: You are the ORCHESTRATOR. Never read code, debug errors, investigate diagnostics, or fix issues yourself. If a subagent leaves problems (compiler errors, test failures, lint issues), retry with a fresh subagent — pass the error details in the prompt so it can fix them. All code work happens inside subagents, not in the orchestrator.
+
 Maximum iterations safety limit: 50. If reached, stop and report to user.
 
 ### Step 7. Review phase 1 — comprehensive
