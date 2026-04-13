@@ -1,6 +1,6 @@
 # Review orchestration prompt
 
-Use this prompt when spawning the review agent (replace `DEFAULT_BRANCH`, `PLAN_FILE_PATH`, `PROGRESS_FILE_PATH`, `REVIEW_PHASE`, and `RESOLVE_SCRIPT`).
+Use this prompt when spawning the review agent (replace `DEFAULT_BRANCH`, `PLAN_FILE_PATH`, `PROGRESS_FILE_PATH`, `REVIEW_PHASE`, `RESOLVE_SCRIPT`, and `PLUGIN_DATA_DIR`).
 
 The review agent launches individual review agents, collects findings, and reports back. It does NOT fix anything — the orchestrator passes findings to the fixer.
 
@@ -10,11 +10,11 @@ Used when `REVIEW_PHASE` is `comprehensive`.
 
 For each agent, resolve its prompt file using the resolve script:
 ```
-bash RESOLVE_SCRIPT agents/quality.txt
-bash RESOLVE_SCRIPT agents/implementation.txt
-bash RESOLVE_SCRIPT agents/testing.txt
-bash RESOLVE_SCRIPT agents/simplification.txt
-bash RESOLVE_SCRIPT agents/documentation.txt
+bash RESOLVE_SCRIPT agents/quality.txt PLUGIN_DATA_DIR
+bash RESOLVE_SCRIPT agents/implementation.txt PLUGIN_DATA_DIR
+bash RESOLVE_SCRIPT agents/testing.txt PLUGIN_DATA_DIR
+bash RESOLVE_SCRIPT agents/simplification.txt PLUGIN_DATA_DIR
+bash RESOLVE_SCRIPT agents/documentation.txt PLUGIN_DATA_DIR
 ```
 
 Read the resolved content for each agent. Replace `DEFAULT_BRANCH` with the actual value in each prompt. Prepend each agent prompt with:

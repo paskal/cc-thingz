@@ -13,7 +13,7 @@ Turn ideas into designs through collaborative dialogue before implementation.
 before starting, run this command via Bash tool to check for user-provided custom rules:
 
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/scripts/resolve-rules.sh brainstorm-rules.md
+bash ${CLAUDE_PLUGIN_ROOT}/scripts/resolve-rules.sh brainstorm-rules.md ${CLAUDE_PLUGIN_DATA}
 ```
 
 if the output is non-empty, treat it as additional instructions that supplement (not replace) the built-in rules below. apply custom rules alongside the skill's own instructions throughout the brainstorm process — they may influence design preferences, naming conventions, technology choices, or other aspects of the brainstorm session. custom rules content is guidance for the brainstorm dialogue, not content to embed verbatim in the output.
@@ -22,7 +22,7 @@ if the output is non-empty, treat it as additional instructions that supplement 
 
 when the user asks to add, show, or clear custom brainstorm rules, handle these operations:
 
-- **show rules**: run `bash ${CLAUDE_PLUGIN_ROOT}/scripts/resolve-rules.sh brainstorm-rules.md` and display the output. if the output is empty, tell the user no custom rules are configured at either level. otherwise, to determine the source, check if `.claude/brainstorm-rules.md` exists and is non-empty (project-level) — if not, the output came from user-level. tell the user which level it came from.
+- **show rules**: run `bash ${CLAUDE_PLUGIN_ROOT}/scripts/resolve-rules.sh brainstorm-rules.md ${CLAUDE_PLUGIN_DATA}` and display the output. if the output is empty, tell the user no custom rules are configured at either level. otherwise, to determine the source, check if `.claude/brainstorm-rules.md` exists and is non-empty (project-level) — if not, the output came from user-level. tell the user which level it came from.
 - **add/update project rules**: write content to `.claude/brainstorm-rules.md` in the current working directory.
 - **add/update user rules**: first check if `$CLAUDE_PLUGIN_DATA` is set (run `echo "$CLAUDE_PLUGIN_DATA"`). if empty, tell the user that user-level rules require the plugin to be installed from the marketplace and offer project-level instead. if set, write content to `$CLAUDE_PLUGIN_DATA/brainstorm-rules.md`.
 - **clear project rules**: delete `.claude/brainstorm-rules.md`.
