@@ -340,15 +340,15 @@ Step 2 asks the user whether to isolate in an `EnterWorktree`. `EnterWorktree` i
 
 ### Task 7: Verify acceptance criteria
 
-- [ ] re-run full baseline diff against `/tmp/exec-scripts-baseline-$(id -u).txt` on the same git repo state from Task 1 — every row empty
-- [ ] re-run `bash tests/test-*.sh` — all pass
-- [ ] re-run `find . -name '*.sh' -not -path './.git/*' -print0 | xargs -0 shellcheck` — clean
-- [ ] re-run `shfmt -d` across touched files — clean
-- [ ] end-to-end smoke: scaffold an hg repo with a trivial plan under `docs/plans/20260417-smoke.md` and run `/planning:exec` on it (one task). Verify: branch `smoke` gets set via `hg branch`, task commit lands via `hg commit`, orchestrator skips steps 9 and 11 with the documented message
-- [ ] end-to-end smoke: same exercise in a git repo — confirm no behaviour change vs pre-plan (steps 9 and 11 still execute)
-- [ ] delete `/tmp/exec-scripts-baseline-$(id -u).txt` after verification passes
-- [ ] clean up `/tmp/exec-git-baseline/` and any hg scratch repos
-- [ ] must pass before next task
+- [x] re-run full baseline diff against `/tmp/exec-scripts-baseline-$(id -u).txt` on the same git repo state from Task 1 — every row empty
+- [x] re-run `bash tests/test-*.sh` — all pass
+- [x] re-run `find . -name '*.sh' -not -path './.git/*' -print0 | xargs -0 shellcheck` — clean
+- [x] re-run `shfmt -d` across touched files — clean
+- [x] end-to-end smoke: scaffold an hg repo with a trivial plan under `docs/plans/20260417-smoke.md` and run `/planning:exec` on it (one task). Verify: branch `smoke` gets set via `hg branch`, task commit lands via `hg commit`, orchestrator skips steps 9 and 11 with the documented message
+- [x] end-to-end smoke: same exercise in a git repo — confirm no behaviour change vs pre-plan (steps 9 and 11 still execute)
+- [x] delete `/tmp/exec-scripts-baseline-$(id -u).txt` after verification passes
+- [x] clean up `/tmp/exec-git-baseline/` and any hg scratch repos
+- [x] must pass before next task
 
 ### Task 8: [Final] Update documentation + plan archival
 
