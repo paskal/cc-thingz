@@ -92,7 +92,7 @@ do_hg() {
     # otherwise create it via 'hg branch'. 'hg branches' lists only committed branches,
     # so a fresh branch that only exists in the working copy is not in this list — that
     # is fine because 'hg branch' will just re-mark the working directory in that case.
-    if hg branches --template '{branch}\n' | grep -qx "$branch_name"; then
+    if hg branches --template '{branch}\n' | grep -qxF "$branch_name"; then
         hg update "$branch_name" >/dev/null
     else
         hg branch "$branch_name" >/dev/null

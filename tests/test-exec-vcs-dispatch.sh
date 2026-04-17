@@ -462,6 +462,51 @@ if [ "$HG_AVAILABLE" -eq 1 ]; then
     assert_output "hg: arg 4 is 'read-only'" "read-only" "$line4"
 fi
 
+echo ""
+echo "testing VCS dispatch: non-VCS dir propagation (set -e)"
+echo "======================================================"
+
+# test 17-20: each of the four exec scripts must exit non-zero in a non-VCS dir
+# (detect-vcs.sh exits 1; set -e in the caller must propagate without falling through
+# to the git/hg code paths)
+EMPTY_DIR="$(mk_tmp)"
+
+assert_exit_nonzero() {
+    local test_name="$1"
+    local actual_rc="$2"
+    if [ "$actual_rc" -ne 0 ]; then
+        echo "  PASS: $test_name"
+        passed=$((passed + 1))
+    else
+        echo "  FAIL: $test_name (expected non-zero exit, got 0)"
+        failed=$((failed + 1))
+    fi
+}
+
+echo ""
+echo "test 17: detect-branch.sh exits non-zero in empty dir"
+rc=0
+(cd "$EMPTY_DIR" && bash "$DETECT_BRANCH" >/dev/null 2>&1) || rc=$?
+assert_exit_nonzero "detect-branch.sh: empty dir exits non-zero" "$rc"
+
+echo ""
+echo "test 18: create-branch.sh exits non-zero in empty dir"
+rc=0
+(cd "$EMPTY_DIR" && bash "$CREATE_BRANCH" "docs/plans/20260329-feature-name.md" >/dev/null 2>&1) || rc=$?
+assert_exit_nonzero "create-branch.sh: empty dir exits non-zero" "$rc"
+
+echo ""
+echo "test 19: stage-and-commit.sh exits non-zero in empty dir"
+rc=0
+(cd "$EMPTY_DIR" && bash "$STAGE_AND_COMMIT" "msg" file.txt >/dev/null 2>&1) || rc=$?
+assert_exit_nonzero "stage-and-commit.sh: empty dir exits non-zero" "$rc"
+
+echo ""
+echo "test 20: run-codex.sh exits non-zero in empty dir"
+rc=0
+(cd "$EMPTY_DIR" && PATH="$STUB_DIR:$PATH" bash "$RUN_CODEX" "prompt" >/dev/null 2>&1) || rc=$?
+assert_exit_nonzero "run-codex.sh: empty dir exits non-zero" "$rc"
+
 # summary
 echo ""
 echo "======================================"

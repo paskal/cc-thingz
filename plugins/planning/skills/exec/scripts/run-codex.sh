@@ -13,6 +13,8 @@ if [ -z "$prompt" ]; then
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# detect-vcs.sh exits non-zero on non-VCS dirs; set -e propagates so the
+# script aborts before reaching codex with an unknown VCS value
 vcs=$(bash "$SCRIPT_DIR/detect-vcs.sh")
 
 # build args as an array so the hg-specific flag can be positioned right after
@@ -28,10 +30,4 @@ args+=(
     -c "project_doc=./CLAUDE.md"
 )
 
-case "$vcs" in
-git | hg) codex "${args[@]}" "$prompt" ;;
-*)
-    echo "error: unsupported VCS: $vcs" >&2
-    exit 1
-    ;;
-esac
+codex "${args[@]}" "$prompt"

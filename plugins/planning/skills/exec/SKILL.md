@@ -171,7 +171,7 @@ Run once (no loop):
 
 ### Step 9. Review phase 3 — codex external review
 
-**hg skip**: If `vcs` is `hg`, skip this entire step. Report to user: "hg detected — skipping external review (git-only). Override `prompts/codex-review.md` via `.claude/exec-plan/` to enable hg-native review." Proceed directly to step 10.
+**hg skip**: Re-detect VCS as a safeguard in case the step 1 capture was lost: `vcs=$(bash ${CLAUDE_PLUGIN_ROOT}/skills/exec/scripts/detect-vcs.sh)`. If `vcs` is `hg`, skip this entire step. Report to user: "hg detected — skipping external review (git-only). Override `prompts/codex-review.md` via `.claude/exec-plan/` to enable hg-native review." Proceed directly to step 10.
 
 Report to user: "--- Review phase 3: codex external review ---"
 
@@ -206,7 +206,7 @@ Same structure as step 7 but with `REVIEW_PHASE` set to `critical`. Resolve `pro
 
 ### Step 11. Finalize
 
-**hg skip**: If `vcs` is `hg`, skip this entire step. Report to user: "hg detected — skipping finalize (git-only). Override `prompts/finalizer.md` via `.claude/exec-plan/` to enable hg-native finalize." Proceed directly to step 12.
+**hg skip**: Re-detect VCS as a safeguard in case the step 1 capture was lost: `vcs=$(bash ${CLAUDE_PLUGIN_ROOT}/skills/exec/scripts/detect-vcs.sh)`. If `vcs` is `hg`, skip this entire step. Report to user: "hg detected — skipping finalize (git-only). Override `prompts/finalizer.md` via `.claude/exec-plan/` to enable hg-native finalize." Note that `DEFAULT_BRANCH` substitutes as `default` (hg's default-branch name) when users override `prompts/finalizer.md` for hg, so any `git rebase origin/DEFAULT_BRANCH` in the bundled template must be replaced with the hg equivalent (e.g. `hg rebase -d default`) in the override. Proceed directly to step 12.
 
 Check `finalize_enabled` userConfig (default: true). If false, skip this step.
 

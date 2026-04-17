@@ -101,16 +101,16 @@ echo "test 1: pure git repo"
 output="$(cd "$GIT_DIR" && bash "$DETECT_SCRIPT")"
 assert_output "pure git root outputs 'git'" "git" "$output"
 
-# test 1b: ensure no trailing whitespace
+# test 1b: ensure exact 'git\n' output (4 bytes: g, i, t, newline)
 echo ""
 echo "test 1b: exact 'git' newline-terminated output (no trailing whitespace)"
-raw="$(cd "$GIT_DIR" && bash "$DETECT_SCRIPT" | od -c | head -1)"
-# expect: 0000000   g   i   t  \n
-if printf '%s\n' "$raw" | grep -q 'g   i   t  \\n'; then
-    echo "  PASS: git output is exactly 'git' plus newline"
+raw_bytes="$(cd "$GIT_DIR" && bash "$DETECT_SCRIPT" | wc -c | tr -d ' ')"
+raw_content="$(cd "$GIT_DIR" && bash "$DETECT_SCRIPT")"
+if [ "$raw_bytes" = "4" ] && [ "$raw_content" = "git" ]; then
+    echo "  PASS: git output is exactly 'git' plus newline (4 bytes)"
     passed=$((passed + 1))
 else
-    echo "  FAIL: git output has unexpected bytes: $raw"
+    echo "  FAIL: git output bytes=$raw_bytes content=$(printf '%q' "$raw_content")"
     failed=$((failed + 1))
 fi
 
@@ -129,12 +129,13 @@ if [ "$HG_AVAILABLE" -eq 1 ]; then
 
     echo ""
     echo "test 3b: exact 'hg' newline-terminated output (no trailing whitespace)"
-    raw="$(cd "$HG_DIR" && bash "$DETECT_SCRIPT" | od -c | head -1)"
-    if printf '%s\n' "$raw" | grep -q 'h   g  \\n'; then
-        echo "  PASS: hg output is exactly 'hg' plus newline"
+    raw_bytes="$(cd "$HG_DIR" && bash "$DETECT_SCRIPT" | wc -c | tr -d ' ')"
+    raw_content="$(cd "$HG_DIR" && bash "$DETECT_SCRIPT")"
+    if [ "$raw_bytes" = "3" ] && [ "$raw_content" = "hg" ]; then
+        echo "  PASS: hg output is exactly 'hg' plus newline (3 bytes)"
         passed=$((passed + 1))
     else
-        echo "  FAIL: hg output has unexpected bytes: $raw"
+        echo "  FAIL: hg output bytes=$raw_bytes content=$(printf '%q' "$raw_content")"
         failed=$((failed + 1))
     fi
 
