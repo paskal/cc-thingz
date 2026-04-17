@@ -282,15 +282,15 @@ Step 2 asks the user whether to isolate in an `EnterWorktree`. `EnterWorktree` i
 - Modify: `plugins/planning/skills/exec/scripts/create-branch.sh`
 - Modify: `tests/test-exec-vcs-dispatch.sh` (add `create-branch` cases)
 
-- [ ] extend `tests/test-exec-vcs-dispatch.sh` FIRST (tests before code): git repo on main with plan `20260329-feature-name.md` → creates/outputs `feature-name`; git repo already on feature → outputs current branch; hg repo on default with same plan → `hg branch` is set and outputs `feature-name`; hg repo already on `my-branch` → outputs `my-branch`; **hg repo re-run with branch already existing (partial-run recovery)** → `hg update` switches to it and outputs the name (catches the `hg branch` re-create abort); hg repo no-commit state → `hg branch` still sets the branch for next commit
-- [ ] confirm tests fail against current script (before implementation) so we know they actually exercise the hg path
-- [ ] wrap existing body in `do_git()` — zero edits inside (preserves the intricate default-branch fallback chain and date-prefix strip)
-- [ ] add `do_hg()` per Technical Details — MUST include the `hg branches | grep -qx` existence check + `hg update` vs `hg branch` branching, else re-runs will abort with "a branch of the same name already exists"
-- [ ] add dispatch at top (including the `*)` safety arm)
-- [ ] git regression diff must still be empty (with missing-baseline guard per Task 1)
-- [ ] `shellcheck` + `shfmt -d`
-- [ ] `bash tests/test-*.sh` — all pass
-- [ ] must pass before next task
+- [x] extend `tests/test-exec-vcs-dispatch.sh` FIRST (tests before code): git repo on main with plan `20260329-feature-name.md` → creates/outputs `feature-name`; git repo already on feature → outputs current branch; hg repo on default with same plan → `hg branch` is set and outputs `feature-name`; hg repo already on `my-branch` → outputs `my-branch`; **hg repo re-run with branch already existing (partial-run recovery)** → `hg update` switches to it and outputs the name (catches the `hg branch` re-create abort); hg repo no-commit state → `hg branch` still sets the branch for next commit
+- [x] confirm tests fail against current script (before implementation) so we know they actually exercise the hg path
+- [x] wrap existing body in `do_git()` — zero edits inside (preserves the intricate default-branch fallback chain and date-prefix strip)
+- [x] add `do_hg()` per Technical Details — MUST include the `hg branches | grep -qx` existence check + `hg update` vs `hg branch` branching, else re-runs will abort with "a branch of the same name already exists"
+- [x] add dispatch at top (including the `*)` safety arm)
+- [x] git regression diff must still be empty (with missing-baseline guard per Task 1)
+- [x] `shellcheck` + `shfmt -d`
+- [x] `bash tests/test-*.sh` — all pass
+- [x] must pass before next task
 
 ### Task 4: Refactor `stage-and-commit.sh` to VCS dispatch
 
