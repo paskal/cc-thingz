@@ -10,6 +10,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 vcs=$(bash "$SCRIPT_DIR/detect-vcs.sh")
 
 do_git() {
+    local branch
     # 1. check cached remote HEAD (local, fast)
     branch=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')
 
@@ -41,8 +42,8 @@ do_hg() {
 }
 
 case "$vcs" in
-git) do_git "$@" ;;
-hg) do_hg "$@" ;;
+git) do_git ;;
+hg) do_hg ;;
 *)
     echo "error: unsupported VCS: $vcs" >&2
     exit 1

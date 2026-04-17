@@ -10,8 +10,7 @@
 
 set -e
 
-plan_file="$1"
-if [ -z "$plan_file" ]; then
+if [ -z "${1:-}" ]; then
     echo "error: plan file path required" >&2
     exit 1
 fi
@@ -88,11 +87,9 @@ do_hg() {
     local branch_name
     branch_name=$(derive_branch_name "$plan_file")
 
-    # if a branch of that name already exists (partial-run recovery), update to it;
-    # otherwise create it via 'hg branch'. 'hg branches' lists only committed branches,
-    # so a fresh branch that only exists in the working copy is not in this list — that
-    # is fine because 'hg branch' will just re-mark the working directory in that case.
-    if hg branches --template '{branch}\n' | grep -qxF "$branch_name"; then
+    # partial-run recovery: if branch already committed, hg update; else hg branch.
+    # fresh-branch (working-copy only) is not listed — 'hg branch' re-marks it safely.
+    if hg branches -q | grep -qxF "$branch_name"; then
         hg update "$branch_name" >/dev/null
     else
         hg branch "$branch_name" >/dev/null

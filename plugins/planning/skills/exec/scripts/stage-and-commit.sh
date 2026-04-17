@@ -10,13 +10,12 @@ if [ $# -lt 2 ]; then
     exit 1
 fi
 
-msg="$1"
-shift
-
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 vcs=$(bash "$SCRIPT_DIR/detect-vcs.sh")
 
 do_git() {
+    local msg="$1"
+    shift
     git add -- "$@"
     git commit -m "$msg"
 }
@@ -25,6 +24,8 @@ do_hg() {
     # -A marks untracked files as added and missing files as removed within the
     # commit selection — parity with 'git add -- <files> && git commit'. Without
     # -A, committing a new untracked file aborts with 'file not tracked'.
+    local msg="$1"
+    shift
     hg commit -A -m "$msg" -- "$@"
 }
 

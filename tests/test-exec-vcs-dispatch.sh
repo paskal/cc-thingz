@@ -1,6 +1,7 @@
 #!/bin/bash
-# automated tests for VCS dispatch in exec scripts
-# covers detect-branch.sh (and additional scripts added in later tasks)
+# automated tests for VCS dispatch in all four exec scripts
+# covers detect-branch.sh, create-branch.sh, stage-and-commit.sh, run-codex.sh
+# (git + hg paths) plus non-VCS exit-code propagation via set -e
 # scaffolds temp git and hg repos and asserts expected outputs
 
 set -euo pipefail
@@ -68,6 +69,56 @@ assert_output() {
         echo "    actual:   $(printf '%q' "$actual")"
         failed=$((failed + 1))
     fi
+}
+
+assert_exit_nonzero() {
+    local test_name="$1"
+    local actual_rc="$2"
+    if [ "$actual_rc" -ne 0 ]; then
+        echo "  PASS: $test_name"
+        passed=$((passed + 1))
+    else
+        echo "  FAIL: $test_name (expected non-zero exit, got 0)"
+        failed=$((failed + 1))
+    fi
+}
+
+# assertion helper: checks a string contains a substring
+assert_contains() {
+    local test_name="$1"
+    local haystack="$2"
+    local needle="$3"
+    case "$haystack" in
+    *"$needle"*)
+        echo "  PASS: $test_name"
+        passed=$((passed + 1))
+        ;;
+    *)
+        echo "  FAIL: $test_name"
+        echo "    expected substring: $(printf '%q' "$needle")"
+        echo "    in:                 $(printf '%q' "$haystack")"
+        failed=$((failed + 1))
+        ;;
+    esac
+}
+
+# assertion helper: checks a string does NOT contain a substring
+assert_not_contains() {
+    local test_name="$1"
+    local haystack="$2"
+    local needle="$3"
+    case "$haystack" in
+    *"$needle"*)
+        echo "  FAIL: $test_name"
+        echo "    unexpected substring: $(printf '%q' "$needle")"
+        echo "    in:                   $(printf '%q' "$haystack")"
+        failed=$((failed + 1))
+        ;;
+    *)
+        echo "  PASS: $test_name"
+        passed=$((passed + 1))
+        ;;
+    esac
 }
 
 HG_AVAILABLE=1
@@ -363,44 +414,6 @@ echo ""
 echo "testing VCS dispatch: run-codex.sh"
 echo "=================================="
 
-# assertion helper: checks a string contains a substring
-assert_contains() {
-    local test_name="$1"
-    local haystack="$2"
-    local needle="$3"
-    case "$haystack" in
-    *"$needle"*)
-        echo "  PASS: $test_name"
-        passed=$((passed + 1))
-        ;;
-    *)
-        echo "  FAIL: $test_name"
-        echo "    expected substring: $(printf '%q' "$needle")"
-        echo "    in:                 $(printf '%q' "$haystack")"
-        failed=$((failed + 1))
-        ;;
-    esac
-}
-
-# assertion helper: checks a string does NOT contain a substring
-assert_not_contains() {
-    local test_name="$1"
-    local haystack="$2"
-    local needle="$3"
-    case "$haystack" in
-    *"$needle"*)
-        echo "  FAIL: $test_name"
-        echo "    unexpected substring: $(printf '%q' "$needle")"
-        echo "    in:                   $(printf '%q' "$haystack")"
-        failed=$((failed + 1))
-        ;;
-    *)
-        echo "  PASS: $test_name"
-        passed=$((passed + 1))
-        ;;
-    esac
-}
-
 # create a codex stub that prints each argument on its own line and exits 0.
 # using a unique dir per run keeps the test hermetic against any real codex install.
 STUB_DIR="$(mk_tmp)"
@@ -470,18 +483,6 @@ echo "======================================================"
 # (detect-vcs.sh exits 1; set -e in the caller must propagate without falling through
 # to the git/hg code paths)
 EMPTY_DIR="$(mk_tmp)"
-
-assert_exit_nonzero() {
-    local test_name="$1"
-    local actual_rc="$2"
-    if [ "$actual_rc" -ne 0 ]; then
-        echo "  PASS: $test_name"
-        passed=$((passed + 1))
-    else
-        echo "  FAIL: $test_name (expected non-zero exit, got 0)"
-        failed=$((failed + 1))
-    fi
-}
 
 echo ""
 echo "test 17: detect-branch.sh exits non-zero in empty dir"
