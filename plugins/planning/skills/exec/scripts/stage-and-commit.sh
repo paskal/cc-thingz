@@ -1,6 +1,7 @@
 #!/bin/bash
 # stage files and commit with a message
 # usage: stage-and-commit.sh <message> <file1> [file2 ...]
+# VCS-aware: dispatches to git or hg based on detect-vcs.sh
 
 set -e
 
@@ -12,5 +13,26 @@ fi
 msg="$1"
 shift
 
-git add -- "$@"
-git commit -m "$msg"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+vcs=$(bash "$SCRIPT_DIR/detect-vcs.sh")
+
+do_git() {
+    git add -- "$@"
+    git commit -m "$msg"
+}
+
+do_hg() {
+    # -A marks untracked files as added and missing files as removed within the
+    # commit selection — parity with 'git add -- <files> && git commit'. Without
+    # -A, committing a new untracked file aborts with 'file not tracked'.
+    hg commit -A -m "$msg" -- "$@"
+}
+
+case "$vcs" in
+git) do_git "$@" ;;
+hg) do_hg "$@" ;;
+*)
+    echo "error: unsupported VCS: $vcs" >&2
+    exit 1
+    ;;
+esac

@@ -10,6 +10,7 @@ REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 EXEC_SCRIPTS_DIR="$REPO_ROOT/plugins/planning/skills/exec/scripts"
 DETECT_BRANCH="$EXEC_SCRIPTS_DIR/detect-branch.sh"
 CREATE_BRANCH="$EXEC_SCRIPTS_DIR/create-branch.sh"
+STAGE_AND_COMMIT="$EXEC_SCRIPTS_DIR/stage-and-commit.sh"
 
 passed=0
 failed=0
@@ -238,6 +239,123 @@ if [ "$HG_AVAILABLE" -eq 1 ]; then
     assert_output "hg/fresh: outputs derived branch name" "$EXPECTED_DERIVED_BRANCH" "$output"
     current_hg="$(cd "$HG_CB_FRESH" && hg branch)"
     assert_output "hg/fresh: hg branch set to derived name" "$EXPECTED_DERIVED_BRANCH" "$current_hg"
+fi
+
+echo ""
+echo "testing VCS dispatch: stage-and-commit.sh"
+echo "========================================="
+
+# test 10: git repo, modified tracked file -> staged and committed
+echo ""
+echo "test 10: git repo, modified tracked file -> staged + committed"
+GIT_SC_MODIFIED="$(mk_tmp)"
+make_git_repo "$GIT_SC_MODIFIED" main
+(
+    cd "$GIT_SC_MODIFIED"
+    echo "initial" >README.md
+    git add README.md
+    git commit -q -m "seed readme"
+    echo "updated" >README.md
+)
+rc=0
+(cd "$GIT_SC_MODIFIED" && bash "$STAGE_AND_COMMIT" "update readme" README.md >/dev/null 2>&1) || rc=$?
+assert_output "git/modified: exit code 0" "0" "$rc"
+subject="$(git -C "$GIT_SC_MODIFIED" log -1 --pretty=%s)"
+assert_output "git/modified: commit subject matches" "update readme" "$subject"
+files="$(git -C "$GIT_SC_MODIFIED" show --name-only --pretty=format: HEAD | sed '/^$/d')"
+assert_output "git/modified: commit contains README.md" "README.md" "$files"
+
+# test 11: git repo, new untracked file -> added and committed
+echo ""
+echo "test 11: git repo, new untracked file -> added + committed"
+GIT_SC_NEW="$(mk_tmp)"
+make_git_repo "$GIT_SC_NEW" main
+(
+    cd "$GIT_SC_NEW"
+    echo "content" >newfile.txt
+)
+rc=0
+(cd "$GIT_SC_NEW" && bash "$STAGE_AND_COMMIT" "add newfile" newfile.txt >/dev/null 2>&1) || rc=$?
+assert_output "git/new: exit code 0" "0" "$rc"
+subject="$(git -C "$GIT_SC_NEW" log -1 --pretty=%s)"
+assert_output "git/new: commit subject matches" "add newfile" "$subject"
+files="$(git -C "$GIT_SC_NEW" show --name-only --pretty=format: HEAD | sed '/^$/d')"
+assert_output "git/new: commit contains newfile.txt" "newfile.txt" "$files"
+
+if [ "$HG_AVAILABLE" -eq 1 ]; then
+    # test 12: hg repo, modified tracked file -> committed via hg commit -A
+    echo ""
+    echo "test 12: hg repo, modified tracked file -> committed"
+    HG_SC_MODIFIED="$(mk_tmp)"
+    make_hg_repo "$HG_SC_MODIFIED"
+    (
+        cd "$HG_SC_MODIFIED"
+        echo "initial" >README.md
+        hg add README.md >/dev/null
+        hg commit -m "seed readme" >/dev/null
+        echo "updated" >README.md
+    )
+    rc=0
+    (cd "$HG_SC_MODIFIED" && bash "$STAGE_AND_COMMIT" "update readme" README.md >/dev/null 2>&1) || rc=$?
+    assert_output "hg/modified: exit code 0" "0" "$rc"
+    subject="$(cd "$HG_SC_MODIFIED" && hg log -l 1 -T '{desc}')"
+    assert_output "hg/modified: commit subject matches" "update readme" "$subject"
+    files="$(cd "$HG_SC_MODIFIED" && hg log -l 1 -T '{files}')"
+    assert_output "hg/modified: commit contains README.md" "README.md" "$files"
+
+    # test 13: hg repo, new untracked file -> committed WITHOUT 'abort: file not tracked'
+    # this is the critical case that catches the missing -A flag bug
+    echo ""
+    echo "test 13: hg repo, new untracked file -> committed via -A"
+    HG_SC_NEW="$(mk_tmp)"
+    make_hg_repo "$HG_SC_NEW"
+    (
+        cd "$HG_SC_NEW"
+        echo "seed" >seed.txt
+        hg add seed.txt >/dev/null
+        hg commit -m "seed" >/dev/null
+        echo "content" >newfile.txt
+    )
+    rc=0
+    (cd "$HG_SC_NEW" && bash "$STAGE_AND_COMMIT" "add newfile" newfile.txt >/dev/null 2>&1) || rc=$?
+    assert_output "hg/new: exit code 0 (no 'file not tracked' abort)" "0" "$rc"
+    subject="$(cd "$HG_SC_NEW" && hg log -l 1 -T '{desc}')"
+    assert_output "hg/new: commit subject matches" "add newfile" "$subject"
+    files="$(cd "$HG_SC_NEW" && hg log -l 1 -T '{files}')"
+    assert_output "hg/new: commit contains newfile.txt" "newfile.txt" "$files"
+
+    # test 14: hg repo with deleted tracked file -> hg commit -A records the removal
+    echo ""
+    echo "test 14: hg repo, deleted tracked file -> removal recorded"
+    HG_SC_DELETED="$(mk_tmp)"
+    make_hg_repo "$HG_SC_DELETED"
+    (
+        cd "$HG_SC_DELETED"
+        echo "seed" >seed.txt
+        echo "gone" >gone.txt
+        hg add seed.txt gone.txt >/dev/null
+        hg commit -m "seed" >/dev/null
+        rm -f gone.txt
+    )
+    rc=0
+    (cd "$HG_SC_DELETED" && bash "$STAGE_AND_COMMIT" "remove gone" gone.txt >/dev/null 2>&1) || rc=$?
+    assert_output "hg/deleted: exit code 0" "0" "$rc"
+    subject="$(cd "$HG_SC_DELETED" && hg log -l 1 -T '{desc}')"
+    assert_output "hg/deleted: commit subject matches" "remove gone" "$subject"
+    files="$(cd "$HG_SC_DELETED" && hg log -l 1 -T '{files}')"
+    assert_output "hg/deleted: commit contains gone.txt" "gone.txt" "$files"
+    # confirm gone.txt is not in the working copy manifest
+    manifest="$(cd "$HG_SC_DELETED" && hg manifest)"
+    case "$manifest" in
+    *gone.txt*)
+        echo "  FAIL: hg/deleted: gone.txt still in manifest"
+        failed=$((failed + 1))
+        ;;
+    *)
+        echo "  PASS: hg/deleted: gone.txt removed from manifest"
+        passed=$((passed + 1))
+        ;;
+    esac
 fi
 
 # summary

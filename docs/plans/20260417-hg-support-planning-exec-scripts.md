@@ -298,15 +298,15 @@ Step 2 asks the user whether to isolate in an `EnterWorktree`. `EnterWorktree` i
 - Modify: `plugins/planning/skills/exec/scripts/stage-and-commit.sh`
 - Modify: `tests/test-exec-vcs-dispatch.sh` (add `stage-and-commit` cases)
 
-- [ ] extend tests FIRST: git repo with modified tracked file → staged then committed; git repo with NEW untracked file → committed; hg repo with modified tracked file → committed via `hg commit -A` (assert `hg log -l 1 -T '{desc}'` matches message, `hg log -l 1 -T '{files}'` includes the file); **hg repo with NEW untracked file → committed without `abort: file not tracked`** (critical case — catches the missing `-A` flag bug); hg repo with deleted tracked file → `hg commit -A` records the removal
-- [ ] confirm the untracked-file tests fail against a `hg commit` (no `-A`) prototype to prove the test actually exercises the bug
-- [ ] wrap existing body in `do_git()`
-- [ ] add `do_hg()` per Technical Details: `hg commit -A -m "$msg" -- "$@"` — the `-A` is non-negotiable
-- [ ] add dispatch at top (including the `*)` safety arm)
-- [ ] git regression: commit behaviour on the baseline git repo must be identical (message, files, exit code). Note: the baseline capture in Task 1 should include stage-and-commit against both tracked-modified and untracked-new files so we compare apples to apples
-- [ ] `shellcheck` + `shfmt -d`
-- [ ] `bash tests/test-*.sh` — all pass
-- [ ] must pass before next task
+- [x] extend tests FIRST: git repo with modified tracked file → staged then committed; git repo with NEW untracked file → committed; hg repo with modified tracked file → committed via `hg commit -A` (assert `hg log -l 1 -T '{desc}'` matches message, `hg log -l 1 -T '{files}'` includes the file); **hg repo with NEW untracked file → committed without `abort: file not tracked`** (critical case — catches the missing `-A` flag bug); hg repo with deleted tracked file → `hg commit -A` records the removal
+- [x] confirm the untracked-file tests fail against a `hg commit` (no `-A`) prototype to prove the test actually exercises the bug
+- [x] wrap existing body in `do_git()`
+- [x] add `do_hg()` per Technical Details: `hg commit -A -m "$msg" -- "$@"` — the `-A` is non-negotiable
+- [x] add dispatch at top (including the `*)` safety arm)
+- [x] git regression: commit behaviour on the baseline git repo must be identical (message, files, exit code). Note: the baseline capture in Task 1 should include stage-and-commit against both tracked-modified and untracked-new files so we compare apples to apples
+- [x] `shellcheck` + `shfmt -d`
+- [x] `bash tests/test-*.sh` — all pass
+- [x] must pass before next task
 
 ### Task 5: Refactor `run-codex.sh` to VCS dispatch
 
