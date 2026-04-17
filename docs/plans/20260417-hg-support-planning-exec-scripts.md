@@ -252,14 +252,14 @@ Step 2 asks the user whether to isolate in an `EnterWorktree`. `EnterWorktree` i
 - Create: `tests/test-exec-vcs-detect.sh`
 - Modify: `.github/workflows/ci.yml`
 
-- [ ] capture pre-change baseline for the four exec scripts in a throwaway git repo under `/tmp/exec-git-baseline/` and save outputs to `/tmp/exec-scripts-baseline-$(id -u).txt`. Seed the baseline repo's `refs/remotes/origin/HEAD` explicitly (`git remote add origin https://example.invalid/x.git && git symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/main`) so `detect-branch.sh`'s fallback chain always takes path 1 — no network flake. Record for each script: stdout + exit code. Subsequent tasks' regression diffs must fail loudly if this file is missing (add `[ -f /tmp/exec-scripts-baseline-$(id -u).txt ] || { echo "missing baseline" >&2; exit 1; }` guard in each regression-diff step)
-- [ ] write `tests/test-exec-vcs-detect.sh` following the style of `tests/test-planning-resolve-rules.sh` (temp dirs, `assert_output`, trap cleanup). Cover: pure git repo → "git", pure hg repo → "hg", empty dir → exit 1, same-dir colocated `.git+.hg` → "git" (precedence — this is the scoped contract; nested boundary cases are out of scope), nested subdir of git repo → "git", nested subdir of hg repo → "hg", assert output is exactly `git\n` / `hg\n` (no trailing whitespace)
-- [ ] create `plugins/planning/skills/exec/scripts/detect-vcs.sh` per Technical Details. Make it executable (`chmod +x`)
-- [ ] run the new test — must pass
-- [ ] add mercurial install step to `.github/workflows/ci.yml` lint job (before "Run shell tests")
-- [ ] run `shellcheck plugins/planning/skills/exec/scripts/detect-vcs.sh tests/test-exec-vcs-detect.sh`
-- [ ] run `shfmt -d` on both new files; apply with `shfmt -w` if needed
-- [ ] must pass before next task
+- [x] capture pre-change baseline for the four exec scripts in a throwaway git repo under `/tmp/exec-git-baseline/` and save outputs to `/tmp/exec-scripts-baseline-$(id -u).txt`. Seed the baseline repo's `refs/remotes/origin/HEAD` explicitly (`git remote add origin https://example.invalid/x.git && git symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/main`) so `detect-branch.sh`'s fallback chain always takes path 1 — no network flake. Record for each script: stdout + exit code. Subsequent tasks' regression diffs must fail loudly if this file is missing (add `[ -f /tmp/exec-scripts-baseline-$(id -u).txt ] || { echo "missing baseline" >&2; exit 1; }` guard in each regression-diff step)
+- [x] write `tests/test-exec-vcs-detect.sh` following the style of `tests/test-planning-resolve-rules.sh` (temp dirs, `assert_output`, trap cleanup). Cover: pure git repo → "git", pure hg repo → "hg", empty dir → exit 1, same-dir colocated `.git+.hg` → "git" (precedence — this is the scoped contract; nested boundary cases are out of scope), nested subdir of git repo → "git", nested subdir of hg repo → "hg", assert output is exactly `git\n` / `hg\n` (no trailing whitespace)
+- [x] create `plugins/planning/skills/exec/scripts/detect-vcs.sh` per Technical Details. Make it executable (`chmod +x`)
+- [x] run the new test — must pass
+- [x] add mercurial install step to `.github/workflows/ci.yml` lint job (before "Run shell tests")
+- [x] run `shellcheck plugins/planning/skills/exec/scripts/detect-vcs.sh tests/test-exec-vcs-detect.sh`
+- [x] run `shfmt -d` on both new files; apply with `shfmt -w` if needed (used `shfmt -i 4` to match repo 4-space indent convention)
+- [x] must pass before next task
 
 ### Task 2: Refactor `detect-branch.sh` to VCS dispatch (git path unchanged)
 
