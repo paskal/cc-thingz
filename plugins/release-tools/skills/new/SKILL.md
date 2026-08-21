@@ -196,6 +196,21 @@ Use AskUserQuestion tool to confirm:
 
 Only after user confirms:
 
+Create an annotated tag locally and push it before calling the forge. Forge release
+commands create lightweight tags when the tag is absent; a lightweight tag has no
+release time of its own, so the next release would use the target commit's older
+committer date as its PR cutoff and re-list already released PRs.
+
+```bash
+git tag -a "$new_version" -m "Version ${new_version#v}"
+git push origin "$new_version"
+```
+
+If either command fails, report the error and abort before creating the release. If the
+forge release command below fails after the push, report that the annotated tag already
+exists remotely and retry only that release command after the problem is resolved. Do
+not recreate or delete the tag.
+
 **GitHub:**
 ```bash
 gh release create "$new_version" \

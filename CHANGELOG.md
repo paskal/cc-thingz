@@ -4,6 +4,17 @@ This repo ships independent Claude Code plugins. Version headings use values fro
 
 Entries are sorted by plugin version date, newest first.
 
+## release-tools v2.0.7 - 2026-08-21
+
+### Bug Fixes
+
+- `get-notes.sh` no longer publishes a silently truncated PR list as complete release notes. GitHub starts with 50 merged PRs and doubles the requested limit until the response is shorter than the request; GitLab requests explicit 100-item pages until the final short page. Both paths keep the existing checked forge and `jq` failures
+- the release workflow creates and pushes an annotated tag before the forge release call. Forge-created tags were lightweight, so their `creatordate` was the target commit's committer date rather than the release time. A PR merged after that commit but before the release was therefore listed again in the next release
+
+### Other
+
+- `tests/test-release-tools.sh` covers a 51-item GitHub result, a 101-item GitLab result, the exact page requests, and the annotated-tag ordering. Each assertion fails when its corresponding pagination or tag step is removed
+
 ## release-tools v2.0.6 - 2026-08-21
 
 ### Bug Fixes

@@ -13,6 +13,7 @@ RELEASE_SCRIPTS_DIR="$REPO_ROOT/plugins/release-tools/skills/new/scripts"
 CALC_VERSION="$RELEASE_SCRIPTS_DIR/calc-version.sh"
 DETECT_PLATFORM="$RELEASE_SCRIPTS_DIR/detect-platform.sh"
 GET_NOTES="$RELEASE_SCRIPTS_DIR/get-notes.sh"
+RELEASE_SKILL="$REPO_ROOT/plugins/release-tools/skills/new/SKILL.md"
 
 passed=0
 failed=0
@@ -401,6 +402,42 @@ STUB
     assert_contains "get-notes/prs: feat PR entry" "$output" "- add user authentication #45 @someone"
     assert_contains "get-notes/prs: fix PR entry" "$output" "- correct the login timeout #12 @other"
 
+    # test 11b: github keeps increasing the requested limit until the returned array
+    # is shorter than that limit. a fixed limit silently turns the first N merged PRs
+    # into the complete release notes, even though every command exits successfully
+    echo ""
+    echo "test 11b: github fetches every merged PR"
+    STUB_GH_PAGES_DIR="$(mk_tmp)"
+    GH_LIMITS="$STUB_GH_PAGES_DIR/limits"
+    cat >"$STUB_GH_PAGES_DIR/gh" <<STUB
+#!/bin/sh
+limit=30
+while [ "\$#" -gt 0 ]; do
+    case "\$1" in
+        --limit)
+            limit="\$2"
+            shift 2
+            ;;
+        *) shift ;;
+    esac
+done
+printf '%s\n' "\$limit" >>"$GH_LIMITS"
+count="\$limit"
+[ "\$count" -gt 51 ] && count=51
+printf '['
+i=1
+while [ "\$i" -le "\$count" ]; do
+    [ "\$i" -gt 1 ] && printf ','
+    printf '{"number":%s,"title":"feat: github page %s","mergedAt":"2999-01-01T00:00:00Z","author":{"login":"user%s"}}' "\$i" "\$i" "\$i"
+    i=\$((i + 1))
+done
+printf ']\n'
+STUB
+    chmod +x "$STUB_GH_PAGES_DIR/gh"
+    output="$(cd "$GN_PRS" && PATH="$STUB_GH_PAGES_DIR:$PATH" bash "$GET_NOTES" github)"
+    assert_contains "get-notes/github-pages: item beyond first batch included" "$output" "- github page 51 #51 @user51"
+    assert_output "get-notes/github-pages: limit expands until complete" $'50\n100' "$(cat "$GH_LIMITS")"
+
     # test 12: tagged repo -> PRs merged before the tag are dropped. the tag is
     # authored at +02:00 and the PRs are merged half an hour either side of that
     # instant, so the comparison has to normalise both sides to UTC. millennia-apart
@@ -456,12 +493,53 @@ STUB
     output="$(cd "$GN_FORGE" && PATH="$STUB_FORGE_DIR:$PATH" bash "$GET_NOTES" gitlab)"
     assert_contains "get-notes/gitlab: MR entry with iid and username" "$output" "- add the gitlab path !7 @glabuser"
 
-    # test 12c: the cutoff is when the release was cut, i.e. the tag's own date --
+    # test 12c: gitlab requests explicit 100-item pages until the last short page.
+    # glab's default is page 1 with 30 items, which exits 0 and looks complete
+    echo ""
+    echo "test 12c: gitlab fetches every merged MR"
+    STUB_GLAB_PAGES_DIR="$(mk_tmp)"
+    GLAB_PAGES="$STUB_GLAB_PAGES_DIR/pages"
+    cat >"$STUB_GLAB_PAGES_DIR/glab" <<STUB
+#!/bin/sh
+page=1
+per_page=30
+while [ "\$#" -gt 0 ]; do
+    case "\$1" in
+        -p|--page)
+            page="\$2"
+            shift 2
+            ;;
+        -P|--per-page)
+            per_page="\$2"
+            shift 2
+            ;;
+        *) shift ;;
+    esac
+done
+printf '%s:%s\n' "\$page" "\$per_page" >>"$GLAB_PAGES"
+start=\$(((page - 1) * per_page + 1))
+end=\$((page * per_page))
+[ "\$end" -gt 101 ] && end=101
+printf '['
+i="\$start"
+while [ "\$i" -le "\$end" ]; do
+    [ "\$i" -gt "\$start" ] && printf ','
+    printf '{"title":"fix: gitlab page %s","iid":%s,"merged_at":"2999-01-01T00:00:00Z","author":{"username":"user%s"}}' "\$i" "\$i" "\$i"
+    i=\$((i + 1))
+done
+printf ']\n'
+STUB
+    chmod +x "$STUB_GLAB_PAGES_DIR/glab"
+    output="$(cd "$GN_PRS" && PATH="$STUB_GLAB_PAGES_DIR:$PATH" bash "$GET_NOTES" gitlab)"
+    assert_contains "get-notes/gitlab-pages: item beyond first page included" "$output" "- gitlab page 101 !101 @user101"
+    assert_output "get-notes/gitlab-pages: uses every 100-item page" $'1:100\n2:100' "$(cat "$GLAB_PAGES")"
+
+    # test 12d: the cutoff is when the release was cut, i.e. the tag's own date --
     # not the tagged commit's author date, which survives rebases and cherry-picks
     # and here predates the tag by six hours. a PR merged inside that window shipped
     # in the previous release and must not be listed again
     echo ""
-    echo "test 12c: cutoff comes from the tag's date, not the commit's author date"
+    echo "test 12d: cutoff comes from the tag's date, not the commit's author date"
     GN_ANNOTATED="$(mk_tmp)"
     make_git_repo "$GN_ANNOTATED"
     (
@@ -486,6 +564,27 @@ STUB
     assert_contains "get-notes/tag-date: post-release PR included" "$output" "- merged after the release was cut #71 @someone"
     assert_not_contains "get-notes/tag-date: pre-release PR excluded" "$output" "#70 @other"
 fi
+
+# test 12e: the release workflow creates and pushes an annotated tag before asking
+# the forge to create the release. forge-created tags are lightweight, whose
+# creatordate is the target commit's committer date rather than the release time
+echo ""
+echo "test 12e: release workflow pushes an annotated tag before forge release"
+skill_text="$(cat "$RELEASE_SKILL")"
+assert_contains "release-workflow/tag: creates an annotated tag" "$skill_text" "git tag -a \"\$new_version\""
+assert_contains "release-workflow/tag: pushes the tag" "$skill_text" "git push origin \"\$new_version\""
+tag_line="$(grep -nF "git tag -a \"\$new_version\"" "$RELEASE_SKILL" | head -n 1 || true)"
+tag_line="${tag_line%%:*}"
+push_line="$(grep -nF "git push origin \"\$new_version\"" "$RELEASE_SKILL" | head -n 1 || true)"
+push_line="${push_line%%:*}"
+forge_line="$(grep -nE '^(gh|glab|tea) release create' "$RELEASE_SKILL" | head -n 1 || true)"
+forge_line="${forge_line%%:*}"
+tag_order="wrong"
+if [ -n "$tag_line" ] && [ -n "$push_line" ] && [ -n "$forge_line" ] && \
+    [ "$tag_line" -lt "$push_line" ] && [ "$push_line" -lt "$forge_line" ]; then
+    tag_order="tag-push-release"
+fi
+assert_output "release-workflow/tag: tag is pushed before release creation" "tag-push-release" "$tag_order"
 
 # test 13: missing platform argument -> error
 echo ""
@@ -549,7 +648,7 @@ assert_output "get-notes/gitea-fallback: tea is never invoked" "absent" "$([ -e 
 # test 16: a failing jq aborts too -- jq is not installed by default on macOS, and it
 # drained the pipeline and left notes that listed no PRs. a renamed field is not this
 # case: jq reads a missing key as null and exits 0, so only a type change trips this
-# check; tests 11, 12 and 12c pin the github field names, 12b the gitlab ones
+# check; tests 11, 11b, 12 and 12d pin the github field names, 12b and 12c the gitlab ones
 echo ""
 echo "test 16: failing jq -> error, not commit-only notes"
 STUB_BADJQ_DIR="$(mk_tmp)"
@@ -559,7 +658,7 @@ chmod +x "$STUB_BADJQ_DIR/gh" "$STUB_BADJQ_DIR/jq"
 run_capture "$GN_NO_TAG" env PATH="$STUB_BADJQ_DIR:$PATH" bash "$GET_NOTES" github
 assert_exit_nonzero "get-notes/jq-fails: exits non-zero" "$cap_rc"
 assert_output "get-notes/jq-fails: no notes on stdout" "" "$cap_out"
-assert_contains "get-notes/jq-fails: reports the jq failure on stderr" "$cap_err" "jq failed to shape"
+assert_contains "get-notes/jq-fails: reports the jq failure on stderr" "$cap_err" "jq failed to inspect"
 
 # summary
 echo ""

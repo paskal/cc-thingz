@@ -56,7 +56,9 @@ other=$(mktemp)
 forge_out=$(mktemp)
 forge_err=$(mktemp)
 shaped=$(mktemp)
-trap 'rm -f "$features" "$improvements" "$fixes" "$other" "$forge_out" "$forge_err" "$shaped"' EXIT
+page_out=$(mktemp)
+pages=$(mktemp)
+trap 'rm -f "$features" "$improvements" "$fixes" "$other" "$forge_out" "$forge_err" "$shaped" "$page_out" "$pages"' EXIT
 
 # categorize entry by conventional commit prefix
 # usage: categorize "description" "suffix"
@@ -91,9 +93,67 @@ categorize() {
 # unauthenticated or rate-limited CLI read as "this release has no PRs" -- the same
 # silent exit-0 hole the unknown-platform guard above closes, by the far more common
 # route. an absent binary lands here too: bash reports 127 with its own message
-run_forge() {
-    if ! "$@" >"$forge_out" 2>"$forge_err"; then
+run_forge_to() {
+    local destination="$1"
+    shift
+    if ! "$@" >"$destination" 2>"$forge_err"; then
         echo "error: $1 failed: $(cat "$forge_err")" >&2
+        exit 1
+    fi
+}
+
+run_forge() {
+    run_forge_to "$forge_out" "$@"
+}
+
+# print the length of a forge response after verifying that it is a JSON array.
+# pagination needs this before collect_prs shapes the final response, so malformed
+# JSON must get the same explicit jq diagnostic rather than a bare set -e exit
+json_array_length() {
+    local source="$1"
+    local count
+    if ! count=$(jq -er \
+        'if type == "array" then length else error("expected a JSON array") end' \
+        <"$source" 2>"$forge_err"); then
+        echo "error: jq failed to inspect the $platform PR list: $(cat "$forge_err")" >&2
+        exit 1
+    fi
+    echo "$count"
+}
+
+# gh pr list has no page flag. grow its total limit until the returned array is
+# shorter than requested; the final response then contains every merged PR. a fixed
+# limit exits 0 when truncated, which makes incomplete notes look authoritative
+run_github_prs() {
+    local fields="$1"
+    local limit=50
+    local count
+    while true; do
+        run_forge gh pr list --state merged --limit "$limit" --json "$fields"
+        count=$(json_array_length "$forge_out")
+        [ "$count" -lt "$limit" ] && break
+        limit=$((limit * 2))
+    done
+}
+
+# glab exposes a page number but reads only one 30-item page by default. request the
+# API maximum explicitly and combine pages until the first short response
+run_gitlab_prs() {
+    local page=1
+    local per_page=100
+    local count
+    : >"$pages"
+    while true; do
+        run_forge_to "$page_out" glab mr list --merged -F json \
+            --page "$page" --per-page "$per_page"
+        count=$(json_array_length "$page_out")
+        cat "$page_out" >>"$pages"
+        printf '\n' >>"$pages"
+        [ "$count" -lt "$per_page" ] && break
+        page=$((page + 1))
+    done
+    if ! jq -s 'add' "$pages" >"$forge_out" 2>"$forge_err"; then
+        echo "error: jq failed to combine the gitlab MR pages: $(cat "$forge_err")" >&2
         exit 1
     fi
 }
@@ -105,7 +165,7 @@ run_forge() {
 # catch a forge renaming a field -- jq reads a missing key as null and still exits 0,
 # so the row is either dropped by a select() or interpolated into the entry as the
 # text "null". only a type change errors out. the field names are pinned by tests instead:
-# github by 11, 12 and 12c in tests/test-release-tools.sh, gitlab by 12b
+# github by 11, 11b, 12 and 12d in tests/test-release-tools.sh, gitlab by 12b and 12c
 collect_prs() {
     if ! jq -r "$@" <"$forge_out" >"$shaped" 2>"$forge_err"; then
         echo "error: jq failed to shape the $platform PR list: $(cat "$forge_err")" >&2
@@ -122,15 +182,15 @@ collect_prs() {
 # shellcheck disable=SC2016
 if [ "$platform" = "github" ]; then
     if [ -n "$tag_date" ]; then
-        run_forge gh pr list --state merged --limit 50 --json number,title,mergedAt,author
+        run_github_prs number,title,mergedAt,author
         collect_prs --arg date "$tag_date" \
             '.[] | select(.mergedAt > $date) | "\(.title)\t#\(.number) @\(.author.login)"'
     else
-        run_forge gh pr list --state merged --limit 20 --json number,title,author
+        run_github_prs number,title,author
         collect_prs '.[] | "\(.title)\t#\(.number) @\(.author.login)"'
     fi
 elif [ "$platform" = "gitlab" ]; then
-    run_forge glab mr list --merged -F json
+    run_gitlab_prs
     if [ -n "$tag_date" ]; then
         collect_prs --arg date "$tag_date" \
             '.[] | select(.merged_at > $date) | "\(.title)\t!\(.iid) @\(.author.username)"'
