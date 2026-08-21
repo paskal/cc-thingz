@@ -104,8 +104,8 @@ run_forge() {
 # would otherwise drain the pipeline and leave the same "no PRs" notes. it does not
 # catch a forge renaming a field -- jq reads a missing key as null and still exits 0,
 # so the row is either dropped by a select() or interpolated into the entry as the
-# text "null". only a type change errors out. the field names are pinned by test 12b
-# in tests/test-release-tools.sh instead
+# text "null". only a type change errors out. the field names are pinned by tests instead:
+# github by 11, 12 and 12c in tests/test-release-tools.sh, gitlab by 12b
 collect_prs() {
     if ! jq -r "$@" <"$forge_out" >"$shaped" 2>"$forge_err"; then
         echo "error: jq failed to shape the $platform PR list: $(cat "$forge_err")" >&2
@@ -138,13 +138,14 @@ elif [ "$platform" = "gitlab" ]; then
         collect_prs '.[] | "\(.title)\t!\(.iid) @\(.author.username)"'
     fi
 elif [ "$platform" = "gitea" ]; then
-    run_forge tea pr list --state merged --output json
-    if [ -n "$tag_date" ]; then
-        collect_prs --arg date "$tag_date" \
-            '.[] | select(.merged > $date) | "\(.title)\t#\(.index) @\(.user.login)"'
-    else
-        collect_prs '.[] | "\(.title)\t#\(.index) @\(.user.login)"'
-    fi
+    # tea cannot supply merged-PR metadata at all: `pr list --state` accepts only
+    # all|open|closed, and `--output json` serializes the printable table, so every value
+    # is a flat string and there is no merged flag and no merge timestamp to filter on.
+    # warn and fall through to commit-derived notes -- aborting here would make every
+    # gitea release impossible, which is worse than the degraded notes gitea has always
+    # produced. a real arm needs `tea api /repos/{owner}/{repo}/pulls?state=closed`,
+    # whose raw REST payload does carry merged, merged_at, number and user.login
+    echo "warning: gitea PR metadata is unavailable, notes are commit-derived only" >&2
 fi
 
 # collect commits (exclude merge commits)

@@ -4,6 +4,17 @@ This repo ships independent Claude Code plugins. Version headings use values fro
 
 Entries are sorted by plugin version date, newest first.
 
+## release-tools v2.0.6 - 2026-08-21
+
+### Bug Fixes
+
+- `get-notes.sh` no longer aborts every Gitea release. The v2.0.5 exit-status check made a pre-existing defect fatal: `tea pr list --state merged` is invalid, since `--state` accepts only `all`, `open` or `closed`, so the new guard fired on every Gitea run and no release could be produced at all. Before that check the failure was swallowed and the script fell through to commit-derived notes, which is degraded but usable. The Gitea arm now skips the forge call entirely, warns on stderr that PR metadata is unavailable, and returns those commit-derived notes. GitHub and GitLab keep the strict abort
+- `tests/test-release-tools.sh` drops the Gitea fixture, which asserted a JSON shape `tea` cannot produce. `tea --output json` serializes the printable table, so every value is a flat string: there is no `merged` field and no `user.login`, and the test passed over an arm that had never worked. Gitea also leaves the failing-CLI matrix, since it no longer invokes a CLI, and gains a test asserting the warning, a zero exit, commit entries in the output, and that `tea` is never called
+
+### Other
+
+- `SKILL.md` documents the Gitea limitation so the agent treats the warning as expected rather than as a failure to abort on. Collecting real merged-PR metadata on Gitea needs `tea api /repos/{owner}/{repo}/pulls?state=closed`, whose raw REST payload does carry `merged`, `merged_at`, `number` and `user.login`; that needs a `tea` version floor, a pagination policy and verification against a live instance, so it is left for separate work
+
 ## planning v3.9.1 - 2026-08-20
 
 ### Bug Fixes
@@ -15,12 +26,13 @@ Entries are sorted by plugin version date, newest first.
 ### New Features
 
 - plan-review overlay: add an `orca` terminal backend to `launch-plan-review.sh`. Inside the Orca app (`TERM_PROGRAM=Orca`) the launcher had no matching branch, so the `ExitPlanMode` hook and `/planning:make` interactive review fell through to "no overlay terminal available" even with revdiff installed. The new branch opens revdiff in a new terminal tab via the orca CLI (`terminal create --command --focus`, pinned to the caller's worktree card through `ORCA_WORKTREE_ID`), blocks on a sentinel file until revdiff exits, then closes the tab with `terminal close --tab`. A sentinel is needed because `terminal create --command` runs inside an interactive shell that stays open after the command, so `terminal wait --for exit` never fires
+
 ## release-tools v2.0.5 - 2026-08-20
 
 ### Bug Fixes
 
 - `get-notes.sh` aborts when the forge CLI fails instead of shipping release notes with every PR entry missing. The CLI sat at the head of a `cli | jq | while` pipeline, so the script's exit status was the loop's — always 0 — and the CLI's own diagnostics went to `/dev/null`. `gh` missing, unauthenticated, rate-limited or pointed at the wrong repository all read as "this release has no PRs", and the workflow wrote those notes to the changelog and published the release with nothing indicating a failure. The Gitea branch was worse: a missing `tea` was wrapped in `command -v` with no `else`, a completely silent no-op. This is the same exit-0 hole the v2.0.4 unknown-platform guard closed, reached by the far more common route
-- `get-notes.sh` reports a `jq` failure too. `jq` is not installed by default on macOS, and a forge that renames a JSON field fails the same way — both drained the pipeline and left notes that listed no PRs
+- `get-notes.sh` reports a `jq` failure too. `jq` is not installed by default on macOS, and an absent one drained the pipeline and left notes that listed no PRs. A forge renaming a field is not this case: jq reads a missing key as null and still exits 0, so only a type change trips the check
 - `get-notes.sh` initialises `tag_date` unconditionally. It was only ever assigned inside `if [ -n "$last_tag" ]`, so in an untagged repository it kept whatever an inherited environment variable of that name held and filtered PRs against it. The tag-date fallback also gained a `|| true`, since under `set -e` a git failure there killed the run with a bare exit code and no message
 - `SKILL.md` tells the agent that the helpers exit non-zero with the reason on stderr, and to abort rather than continue with an empty value. The Scripts block documented only what each helper prints on stdout, so the failures above had no documented consequence even once they were loud. Partly addresses `docs/backlog/release-skill-never-tells-agent-to-abort.md`
 

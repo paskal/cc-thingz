@@ -431,14 +431,15 @@ STUB
     assert_contains "get-notes/prs-tagged: post-tag PR included" "$output" "- merged half an hour after the tag #45 @someone"
     assert_not_contains "get-notes/prs-tagged: pre-tag PR excluded" "$output" "#12 @other"
 
-    # test 12b: the gitlab and gitea branches read different JSON field names
-    # (merged_at/iid/author.username, merged/index/user.login) and were never
-    # exercised, so a typo in either jq expression produced empty notes silently.
-    # the repo is tagged so both take their tagged arm -- merged_at and merged
-    # appear only in the select() there, and a renamed key yields null, which
-    # compares false against the date and drops every row while jq still exits 0
+    # test 12b: the gitlab branch reads its own JSON field names
+    # (merged_at/iid/author.username) and was never exercised, so a typo in that jq
+    # expression produced empty notes silently. the repo is tagged so it takes the
+    # tagged arm -- merged_at appears only in the select() there, and a renamed key
+    # yields null, which compares false against the date and drops every row while
+    # jq still exits 0. gitea has no equivalent test because it collects no PRs at
+    # all; see the gitea fallback test below
     echo ""
-    echo "test 12b: gitlab and gitea PR collection"
+    echo "test 12b: gitlab MR collection"
     STUB_FORGE_DIR="$(mk_tmp)"
     cat >"$STUB_FORGE_DIR/glab" <<'STUB'
 #!/bin/sh
@@ -448,22 +449,12 @@ cat <<'JSON'
 ]
 JSON
 STUB
-    cat >"$STUB_FORGE_DIR/tea" <<'STUB'
-#!/bin/sh
-cat <<'JSON'
-[
-  {"title":"fix: add the gitea path","index":9,"merged":"2999-01-01T00:00:00Z","user":{"login":"teauser"}}
-]
-JSON
-STUB
-    chmod +x "$STUB_FORGE_DIR/glab" "$STUB_FORGE_DIR/tea"
+    chmod +x "$STUB_FORGE_DIR/glab"
     GN_FORGE="$(mk_tmp)"
     make_git_repo "$GN_FORGE"
     git -C "$GN_FORGE" tag v1.0.0
     output="$(cd "$GN_FORGE" && PATH="$STUB_FORGE_DIR:$PATH" bash "$GET_NOTES" gitlab)"
     assert_contains "get-notes/gitlab: MR entry with iid and username" "$output" "- add the gitlab path !7 @glabuser"
-    output="$(cd "$GN_FORGE" && PATH="$STUB_FORGE_DIR:$PATH" bash "$GET_NOTES" gitea)"
-    assert_contains "get-notes/gitea: PR entry with index and login" "$output" "- add the gitea path #9 @teauser"
 
     # test 12c: the cutoff is when the release was cut, i.e. the tag's own date --
     # not the tagged commit's author date, which survives rebases and cherry-picks
@@ -516,11 +507,11 @@ assert_contains "get-notes/bad-platform: names the platform on stderr" "$cap_err
 # test 15: a failing forge CLI aborts instead of emitting commit-only notes. the CLI sat
 # at the head of a `cli | jq | while` pipeline, so its exit status was discarded and its
 # stderr went to /dev/null -- gh missing, unauthenticated or rate-limited read as "this
-# release has no PRs" and shipped notes with every PR entry silently absent. the gitea
-# case also had no `else` for an absent tea at all
+# release has no PRs" and shipped notes with every PR entry silently absent.
+# gitea is not in this matrix: it never invokes a forge CLI, see test 15b
 echo ""
 echo "test 15: failing forge CLI -> error, not commit-only notes"
-for spec in "github:gh" "gitlab:glab" "gitea:tea"; do
+for spec in "github:gh" "gitlab:glab"; do
     forge="${spec%%:*}"
     cli="${spec##*:}"
     run_capture "$GN_NO_TAG" env PATH="$STUB_PATH" bash "$GET_NOTES" "$forge"
@@ -531,10 +522,34 @@ for spec in "github:gh" "gitlab:glab" "gitea:tea"; do
     assert_not_contains "get-notes/$forge-cli-fails: no commit entries" "$cap_out" "add plan annotations"
 done
 
+# test 15b: gitea warns and falls through to commit notes instead of aborting. tea cannot
+# supply merged-PR metadata at all -- `pr list --state` takes only all|open|closed, and
+# `--output json` serializes the printable table, so there is no merged flag and no merge
+# timestamp. a strict abort here would make every gitea release impossible, which is worse
+# than the degraded notes gitea has always produced
+echo ""
+echo "test 15b: gitea -> warning plus commit-derived notes"
+STUB_TEA_DIR="$(mk_tmp)"
+TEA_MARKER="$STUB_TEA_DIR/tea-was-called"
+# behaves like tea 0.15.1: it rejects --state merged outright, so a stub that exits 0
+# would let the assertions below pass even if the arm went back to calling tea
+cat >"$STUB_TEA_DIR/tea" <<STUB
+#!/bin/sh
+touch "$TEA_MARKER"
+echo "Error: unknown state 'merged'" >&2
+exit 1
+STUB
+chmod +x "$STUB_TEA_DIR/tea"
+run_capture "$GN_NO_TAG" env PATH="$STUB_TEA_DIR:$PATH" bash "$GET_NOTES" gitea
+assert_output "get-notes/gitea-fallback: exits zero" "0" "$cap_rc"
+assert_contains "get-notes/gitea-fallback: warns on stderr" "$cap_err" "gitea PR metadata is unavailable"
+assert_contains "get-notes/gitea-fallback: commit entries still emitted" "$cap_out" "- add plan annotations"
+assert_output "get-notes/gitea-fallback: tea is never invoked" "absent" "$([ -e "$TEA_MARKER" ] && echo present || echo absent)"
+
 # test 16: a failing jq aborts too -- jq is not installed by default on macOS, and it
 # drained the pipeline and left notes that listed no PRs. a renamed field is not this
 # case: jq reads a missing key as null and exits 0, so only a type change trips this
-# check; test 12b pins the field names
+# check; tests 11, 12 and 12c pin the github field names, 12b the gitlab ones
 echo ""
 echo "test 16: failing jq -> error, not commit-only notes"
 STUB_BADJQ_DIR="$(mk_tmp)"
