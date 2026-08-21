@@ -8,7 +8,7 @@ Entries are sorted by plugin version date, newest first.
 
 ### Other
 
-- corrects two claims that `tea` cannot supply merged-PR metadata. Only `tea pr list` cannot: neither its seven default fields nor the twenty-one `--fields` accepts includes a merged flag or a merge timestamp. `tea api` does return them, which the same comment in `get-notes.sh` already said five lines further down
+- corrects two claims that `tea` cannot supply merged-PR metadata. Only `tea pr list` cannot: neither its seven default fields nor the full set of twenty-one values accepted by `--fields` includes a merged flag or a merge timestamp. `tea api` does return them, which the same comment in `get-notes.sh` already said five lines further down
 
 ## release-tools v2.0.7 - 2026-08-21
 
@@ -26,7 +26,7 @@ Entries are sorted by plugin version date, newest first.
 ### Bug Fixes
 
 - `get-notes.sh` no longer aborts every Gitea release. The v2.0.5 exit-status check made a pre-existing defect fatal: `tea pr list --state merged` is invalid, since `--state` accepts only `all`, `open` or `closed`, so the new guard fired on every Gitea run and no release could be produced at all. Before that check the failure was swallowed and the script fell through to commit-derived notes, which is degraded but usable. The Gitea arm now skips the forge call entirely, warns on stderr that PR metadata is unavailable, and returns those commit-derived notes. GitHub and GitLab keep the strict abort
-- `tests/test-release-tools.sh` drops the Gitea fixture, which asserted a JSON shape `tea` cannot produce. `tea --output json` serializes the printable table, so every value is a flat string: there is no `merged` field and no `user.login`, and the test passed over an arm that had never worked. Gitea also leaves the failing-CLI matrix, since it no longer invokes a CLI, and gains a test asserting the warning, a zero exit, commit entries in the output, and that `tea` is never called
+- `tests/test-release-tools.sh` drops the Gitea fixture, which asserted a JSON shape `tea pr list` cannot produce. That output serializes the printable table, so every value is a flat string: there is no `merged` field and no `user.login`, and the test passed over an arm that had never worked. Gitea also leaves the failing-CLI matrix, since it no longer invokes a CLI, and gains a test asserting the warning, a zero exit, commit entries in the output, and that `tea` is never called
 
 ### Other
 

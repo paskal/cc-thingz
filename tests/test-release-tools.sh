@@ -621,10 +621,10 @@ for spec in "github:gh" "gitlab:glab"; do
     assert_not_contains "get-notes/$forge-cli-fails: no commit entries" "$cap_out" "add plan annotations"
 done
 
-# test 15b: gitea warns and falls through to commit notes instead of aborting. tea cannot
-# supply merged-PR metadata at all -- `pr list --state` takes only all|open|closed, and
-# `--output json` serializes the printable table, so there is no merged flag and no merge
-# timestamp. a strict abort here would make every gitea release impossible, which is worse
+# test 15b: gitea warns and falls through to commit notes instead of aborting. `tea pr list`
+# cannot supply merged-PR metadata -- its `--state` takes only all|open|closed, and
+# `--output json` serializes the printable table, so no field it offers is a merged flag or
+# a merge timestamp. a strict abort here would make every gitea release impossible, which is worse
 # than the degraded notes gitea has always produced
 echo ""
 echo "test 15b: gitea -> warning plus commit-derived notes"
