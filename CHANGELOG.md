@@ -4,6 +4,12 @@ This repo ships independent Claude Code plugins. Version headings use values fro
 
 Entries are sorted by plugin version date, newest first.
 
+## release-tools v2.0.8 - 2026-08-21
+
+### Other
+
+- corrects two claims that `tea` cannot supply merged-PR metadata. Only `tea pr list` cannot: neither its seven default fields nor the twenty-one `--fields` accepts includes a merged flag or a merge timestamp. `tea api` does return them, which the same comment in `get-notes.sh` already said five lines further down
+
 ## release-tools v2.0.7 - 2026-08-21
 
 ### Bug Fixes

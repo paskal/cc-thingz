@@ -28,7 +28,7 @@ unauthenticated or rate-limited; continuing there publishes a release whose note
 none of its PRs.
 
 On Gitea, `get-notes.sh` collects no PRs and returns commit-derived notes with a warning
-on stderr, because `tea` exposes neither a merged flag nor a merge timestamp. That warning
+on stderr, because `tea pr list` exposes neither a merged flag nor a merge timestamp. That warning
 is not a failure - show it to the user with the preview in Step 8 and carry on.
 
 ## Workflow

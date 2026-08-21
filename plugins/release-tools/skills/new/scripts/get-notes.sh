@@ -198,9 +198,9 @@ elif [ "$platform" = "gitlab" ]; then
         collect_prs '.[] | "\(.title)\t!\(.iid) @\(.author.username)"'
     fi
 elif [ "$platform" = "gitea" ]; then
-    # tea cannot supply merged-PR metadata at all: `pr list --state` accepts only
+    # `tea pr list` cannot supply merged-PR metadata: its `--state` accepts only
     # all|open|closed, and `--output json` serializes the printable table, so every value
-    # is a flat string and there is no merged flag and no merge timestamp to filter on.
+    # is a flat string and no field it offers is a merged flag or a merge timestamp.
     # warn and fall through to commit-derived notes -- aborting here would make every
     # gitea release impossible, which is worse than the degraded notes gitea has always
     # produced. a real arm needs `tea api /repos/{owner}/{repo}/pulls?state=closed`,
