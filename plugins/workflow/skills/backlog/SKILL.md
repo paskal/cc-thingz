@@ -45,8 +45,9 @@ Three frontmatter fields, written once and rewritten only as **Appending** below
   - **`no`** — a decision not to fix, kept so the same finding is not rediscovered and re-argued by the
     next review that touches the file. Keep a `no` only while that rationale still earns its place; once
     it does not, delete the file rather than carrying it.
-- **`where: path:line`** — omit when the item is not anchored to one place. The dedupe key alongside
-  the slug, compared only when both items have one; two items missing it are not thereby the same item.
+- **`where: path:line`** — omit when the item is not anchored to one place. Its path narrows the dedupe
+  search alongside the slug and the line is a navigation hint that moves. Compare paths only when both
+  items have `where`; two items missing it are not thereby the same item.
 - **`added: YYYY-MM-DD`** — never updated, so it reads as age. A year-old item is itself information.
   Zero-pad it so the values sort lexically.
 
@@ -62,12 +63,65 @@ Create the file. When the work lands, `git rm` it in the commit that lands the f
 commit. There is no checkbox, no in-progress marker: the staged deletion is the state. Dropping an item
 decided against is the same operation with a different reason.
 
+## Briefing an item
+
+Both argument forms below put the same four things on screen before asking anything about an item, as
+ordinary output rather than inside the `AskUserQuestion`. The widget covers roughly five lines above
+itself, so the question text still names the item and carries the one-line reason for its recommendation.
+
+- **Summary** — what the item is and why it was filed, in your own words, one or two sentences. Not the
+  H1 restated and not the body pasted back.
+- **Effort** — what the fix costs: the files and call sites it touches, whether a test already covers the
+  path, and whether it is mechanical or a design decision still to be made.
+- **Blast radius** — what else the change can reach. Callers, generated files, anything sharing the code
+  path, and whether it reverts cleanly. "Contained" is a claim about what depends on the code, so check
+  before making it.
+- **Materiality** — who is affected today, how badly, and what leaving it costs. Most items have no
+  user-visible symptom; say so rather than inflating one.
+
+Each of the last three is ONE line carrying a word and the fact behind it — the word alone asks the user
+to take the call on trust, the fact is what lets him disagree with it, and the length is what keeps the
+briefing readable above its question. Judge all four against the repo as it stands rather than against
+the item's own account: the reasoning in a file goes stale the same way its `where` does.
+
+## Every item as the argument
+
+`/workflow:backlog --all` walks every current item to a disposition. Check this mode before slug handling.
+An argument that starts with `-` is option syntax, so a file whose name begins with `-` cannot be reached
+as a slug; `all.md` is still an ordinary slug and unaffected.
+
+1. Glob `docs/backlog/*.md` from the repo root and read every file in full. Keep `worth: no` items in the
+   walk: worth informs the recommendation, it does not filter the list.
+2. Before asking anything, verify every `where` and analyze each item's value, complexity, and blockers.
+   Identify explicit blockers and relationships between items, ask about real prerequisites before their
+   dependents, and carry each relationship into EVERY affected item's briefing — a prerequisite's own
+   materiality rises because fixing it unblocks another, so the context runs both ways. The serial flow
+   decides one item at a time, so a relationship is context for a question rather than a joint decision.
+   For a blocker outside the backlog, recommend leaving the item and name the blocker.
+3. Take the items ONE AT A TIME: print that item's briefing, ask about it alone with **AskUserQuestion**
+   with the recommended disposition first, carry out the answer, and only then move to the next. Never
+   brief several items and ask afterwards — a batch of briefings is a wall of text with no decision
+   attached to any of it, and the answer to one item routinely changes the next. Number them, `item N of
+   M`, so the walk's length is visible from the first question. Use the concrete actions from the list
+   flow below rather than a single action for the whole list.
+4. Carry out each answer before asking about the next item. Immediately before an accepted fix or drop
+   — both mutate, a leave does not — re-read the item and verify its `where` again, because an earlier
+   fix may have moved or changed it. If that materially changes the recommendation or any part of the
+   briefing, print the updated briefing and ask about that item again — an answer given against a
+   briefing now known to be stale is not an answer to act on.
+   Apply the usual tests, formatters, and linters, and `git rm` a fixed or dropped item under the
+   lifecycle rule above.
+5. Continue until every item has a disposition. Never auto-commit. If the user later authorizes commits,
+   default to one commit per independent fix with its item deletion; pure drops may share one backlog-only
+   cleanup commit.
+
 ## A slug as the argument
 
 `/workflow:backlog <slug>` names one item: `docs/backlog/<slug>.md`, the file name without its extension. Read
-that file alone, verify its `where` the same way step 2 below does when it has one, and go straight to the fix-or-drop
-question for it — skip the listing, which is not what was asked for. A slug matching no file is a
-mistake worth saying plainly: report it and list what is there instead of guessing at the nearest name.
+that file alone, verify its `where` the same way step 2 below does when it has one, print the briefing
+above for it, and go straight to the fix-or-drop question — skip the listing, which is not what was
+asked for. A slug matching no file is a mistake worth saying plainly: report it and list what is there
+instead of guessing at the nearest name.
 
 ## Reading and working the list
 
@@ -114,7 +168,9 @@ the directory or writing any file:
      nothing: do not create a branch, a worktree, or a temp checkout, do not switch the current checkout,
      and do not pick a destination the user did not name.
 
-**Dedupe before writing**, on `where` first and the slug second. A pre-existing defect surfaces in every
+**Dedupe before writing.** The `where` path and the slug find the candidates; what settles it is the defect
+each one claims. A shared path is not a duplicate on its own, since one file holds several unrelated defects,
+and the trailing line moves with any edit above it. A pre-existing defect surfaces in every
 review that touches its file, so the same item arrives repeatedly. If it is already there, say so and leave
 it alone. If the new sighting sharpens the description or changes the `worth` call, edit that file in place
 rather than adding a second one.

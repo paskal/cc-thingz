@@ -4,6 +4,17 @@ This repo ships independent Claude Code plugins. Version headings use values fro
 
 Entries are sorted by plugin version date, newest first.
 
+## workflow v1.3.0 - 2026-08-23
+
+### New Features
+
+- `/workflow:backlog --all` walks every item in the backlog to a disposition, one at a time: brief the item, ask about it alone, carry out the answer, then move to the next. Blockers and relationships between items are worked out before the first question, so a prerequisite is asked about before whatever it unblocks
+- Both argument forms now brief an item before asking about it — a summary in the agent's own words, then the effort, blast radius, and materiality, each one line carrying the fact behind it. The call is made against the repo as it stands rather than against the item's own account, which goes stale the same way its `where` does
+
+### Bug Fixes
+
+- `/workflow:backlog` no longer treats `where` as a dedupe key. The path and the slug find the candidates and the claimed defect settles it, so one file holding several unrelated defects no longer collapses them into one item, and a line that moved no longer hides an existing item from the next reviewer
+
 ## workflow v1.2.0 - 2026-08-22
 
 ### New Features
