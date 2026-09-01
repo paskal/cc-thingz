@@ -4,13 +4,6 @@ This repo ships independent Claude Code plugins. Version headings use values fro
 
 Entries are sorted by plugin version date, newest first.
 
-## Codex support - 2026-09-01
-
-### New Features
-
-- Added an OpenAI Codex marketplace containing all seven cc-thingz plugins. Claude commands and reusable agents are packaged as Codex skills, with Codex-native manifests, project paths, persistent configuration, and documentation.
-- Added Codex skill equivalents for unsupported Claude hook handlers, while preserving skill-eval's `UserPromptSubmit` behaviour through an adapted command hook.
-
 ## workflow v1.3.0 - 2026-08-23
 
 ### New Features
