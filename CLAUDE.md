@@ -25,6 +25,7 @@ Things to make Claude Code even better — hooks, skills, and commands, organize
 ## Structure
 
 - `.claude-plugin/marketplace.json` — marketplace catalog listing all plugins
+- `.agents/plugins/marketplace.json` — Codex marketplace catalog listing all plugins
 - `plugins/` — each subdirectory is an independent plugin:
   - `plugins/brainstorm/` — collaborative design skill
   - `plugins/review/` — PR review skill + writing style skill
@@ -33,6 +34,7 @@ Things to make Claude Code even better — hooks, skills, and commands, organize
   - `plugins/thinking-tools/` — dialectic analysis + root-cause-investigator skills
   - `plugins/skill-eval/` — skill evaluation hook
   - `plugins/workflow/` — session workflow helpers (learn, clarify, wrong, md-copy, txt-copy)
+- `plugins/codex/` — Codex-specific manifests and adapted skill packages for every plugin
 - Each plugin has its own `.claude-plugin/plugin.json`, and standard subdirectories (`skills/`, `commands/`, `hooks/`) as needed.
 
 ## Local Plugin Development
@@ -50,6 +52,7 @@ Things to make Claude Code even better — hooks, skills, and commands, organize
 - Python scripts include embedded tests run via `--test` flag: `python3 plugins/planning/scripts/plan-annotate.py --test`
 - Shell test scripts live in `tests/`: `bash tests/test-planning-resolve-rules.sh`, `bash tests/test-brainstorm-resolve-rules.sh`. CI runs every `tests/test-*.sh`, so a new file there is picked up automatically
 - CI helper scripts live in `.github/scripts/`. `check-frontmatter.py` validates YAML frontmatter across the repo (`python3 .github/scripts/check-frontmatter.py .`) and carries its own tests (`--test`)
+- Codex manifests are validated with the Codex plugin validator, and each Codex skill is checked with the Codex skill validator
 
 ## Plugin Design Constraints
 
