@@ -69,10 +69,15 @@ Nothing is copied anywhere automatically. Existing Claude installations may have
 copies of every bundled prompt and agent — those copies still shadow the bundled defaults and no longer track
 upgrades, so check that directory and delete anything you did not deliberately edit.
 
-To customize a file, copy it into an override path first with the `customize-file.sh` helper. The runnable commands,
-and what an override commits you to, are in the **Customization** paragraph of the project README:
-https://github.com/umputun/cc-thingz#planning — kept there because both plugin paths have to be spelled out
-literally, and only the README carries that form. That paragraph is authoritative; do not restate it here.
+To customize a file, resolve the planning plugin root from this skill's absolute catalogue path, then run the
+bundled helper. Omit `--user` for a project override under `.codex/exec-plan/`; include it for a user override:
+
+```bash
+bash "<planning-plugin-root>/skills/exec/scripts/customize-file.sh" prompts/review.md
+bash "<planning-plugin-root>/skills/exec/scripts/customize-file.sh" prompts/review.md --user
+```
+
+An override shadows the bundled default until the override is deleted.
 
 ### Customization patterns
 

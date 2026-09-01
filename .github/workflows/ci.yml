@@ -43,9 +43,14 @@ jobs:
               (sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends mercurial)
           hg --version
 
+      - name: Validate Codex packages
+        run: bash tests/test-codex-packages.sh
+
       - name: Run shell tests
         run: |
-          for t in tests/test-*.sh; do bash "$t"; done
+          for t in tests/test-*.sh; do
+            [ "$t" = tests/test-codex-packages.sh ] || bash "$t"
+          done
 
       - name: Run python tests
         run: |
