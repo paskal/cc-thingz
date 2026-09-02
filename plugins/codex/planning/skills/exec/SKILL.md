@@ -169,7 +169,7 @@ output to a fresh fixer subagent and verify the resulting changes. Log findings 
 
 ## Step 9: Review phase 3
 
-Skip external review for Mercurial unless the user provided a Mercurial-native override.
+Skip external review for Mercurial.
 
 For Git, loop up to `external_review_iterations`:
 
@@ -179,9 +179,11 @@ For Git, loop up to `external_review_iterations`:
    tool so backticks and dollar signs remain literal.
 3. Run `run-external-review.sh`, passing `external_review_cmd` as the first argument and the prompt
    contents as the second. An empty command uses Codex. Close stdin for a Codex subprocess.
-4. Treat non-zero exit, empty output, or output with neither a `NO ISSUES FOUND` marker nor a
-   `CRITICAL`, `MAJOR`, or `MINOR` tag as reviewer failure.
-5. Pass all valid findings to a fresh fixer subagent. Re-run when a whole-word `CRITICAL` or
+4. If it exits 127 and stderr contains the script-owned `run-external-review:` marker, report the
+   tool as unavailable and skip this phase. Treat any other non-zero exit as reviewer failure.
+5. Treat empty output, or output with neither a `NO ISSUES FOUND` marker nor a `CRITICAL`, `MAJOR`,
+   or `MINOR` tag, as reviewer failure.
+6. Pass all valid findings to a fresh fixer subagent. Re-run when a whole-word `CRITICAL` or
    `MAJOR` finding was present; otherwise stop after applying and verifying minor fixes.
 
 Never interpret an empty reviewer result as a clean review.

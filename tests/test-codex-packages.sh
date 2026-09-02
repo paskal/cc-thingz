@@ -270,6 +270,15 @@ assert "grep -E '\\[(decision|deviation)\\]'" in exec_skill, (
 )
 assert "- Plan move: <outcome or n/a>" in stats_prompt, "run summary omits the plan-move outcome"
 assert "- Progress file: PROGRESS_FILE_PATH" in stats_prompt, "run summary omits its progress file"
+assert "Skip external review for Mercurial." in exec_skill, (
+    "Mercurial is not excluded from the Git-only external-review loop"
+)
+assert "unless the user provided a Mercurial-native override" not in exec_skill, (
+    "unsupported Mercurial external-review override is still advertised"
+)
+assert "script-owned `run-external-review:` marker" in exec_skill, (
+    "tool-unavailable exit 127 is not distinguished from reviewer failure"
+)
 
 hook_root = root / "plugins/codex/skill-eval/hooks"
 hook = json.loads((hook_root / "hooks.json").read_text())
