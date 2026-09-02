@@ -323,8 +323,6 @@ Offer these choices in one multiple-choice question:
   when the annotation loop completes, ask again with the remaining options (minus "Interactive review")
 - **Auto review**: invoke the `planning:plan-review` skill in the current session. After review completes, ask again with the same options minus "Auto review"
 - **Implement**: commit plan with message like "docs: add <topic> implementation plan", then offer two implementation modes in one multiple-choice question:
-  - **Interactive**: implement task by task in this session
-  - **Autonomous**: run the `planning:exec` skill for autonomous execution with reviews
   - **Interactive**: begin implementing task 1 interactively in this session. Maintain a task list and mark items completed immediately (do not batch)
   - **Autonomous**: invoke the `planning:exec` skill with the plan path for autonomous execution with multi-phase review
 - **Done**: commit plan with message like "docs: add <topic> implementation plan", stop

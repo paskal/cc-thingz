@@ -35,14 +35,16 @@ Start with these defaults:
 Load `${CODEX_HOME:-$HOME/.codex}/cc-thingz/planning/config.json` when it exists and merge its
 recognised keys over the defaults. Then load `.codex/planning.json` from the project root when it
 exists, but allow it to override only `task_retries`, `review_iterations`,
-`external_review_iterations`, `finalize_enabled`, and `plans_dir`.
+`external_review_iterations`, and `finalize_enabled`.
 
-`external_review_cmd` is executable configuration and may come only from the user-level file.
-Reject a project configuration containing that key with an actionable error. Never execute a
-command selected by a checked-out repository.
+`external_review_cmd` selects an executable and `plans_dir` selects files to edit and move. Both
+may come only from the user-level file. Reject a project configuration containing either key with
+an actionable error. Never execute a command or select a plan path from checked-out configuration.
 
-Reject invalid types and negative iteration counts with an actionable error. Do not require a
-configuration file for the core workflow.
+Require integer iteration counts in these ranges: `task_retries` from 0 through 3, and
+`review_iterations` and `external_review_iterations` from 0 through 10. Reject invalid types,
+out-of-range counts, and an empty or non-string `plans_dir` with an actionable error. Do not
+require a configuration file for the core workflow.
 
 ## Prompt overrides
 

@@ -49,16 +49,17 @@ planning:make add my Go testing rules to user-level planning rules
 Set user configuration in
 `${CODEX_HOME:-$HOME/.codex}/cc-thingz/planning/config.json`. A project may override the safe
 workflow settings in `.codex/planning.json`, but project configuration must not contain
-`external_review_cmd` because that key selects an executable.
+`external_review_cmd` or `plans_dir` because those keys select an executable or files outside the
+checked-out configuration.
 
 | Key | Default | Description |
 |-----|---------|-------------|
 | `external_review_cmd` | *(empty — falls back to codex)* | user-only external review tool command; prompt appended as final argv, findings on stdout |
-| `task_retries` | `1` | retries for failed tasks |
-| `review_iterations` | `5` | max fix-and-recheck cycles |
-| `external_review_iterations` | `10` | max external review iterations |
+| `task_retries` | `1` | retries for failed tasks; integer from 0 through 3 |
+| `review_iterations` | `5` | max fix-and-recheck cycles; integer from 0 through 10 |
+| `external_review_iterations` | `10` | max external review iterations; integer from 0 through 10 |
 | `finalize_enabled` | `true` | run rebase + squash phase |
-| `plans_dir` | `docs/plans` | directory for plan files |
+| `plans_dir` | `docs/plans` | user-only directory for plan files |
 
 ### Customization
 Prompts and agent definitions use a three-layer override chain:

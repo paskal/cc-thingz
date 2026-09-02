@@ -256,6 +256,7 @@ missing = sorted(path for path in planning_files if not (planning_root / path).i
 assert not missing, f"planning package is missing: {missing}"
 
 exec_skill = (planning_root / "skills/exec/SKILL.md").read_text()
+make_skill = (planning_root / "skills/make/SKILL.md").read_text()
 external_review_prompt = (planning_root / "skills/exec/references/prompts/codex-review.md").read_text()
 stats_prompt = (planning_root / "skills/exec/references/prompts/stats.md").read_text()
 assert "later iterations as `git diff`" not in exec_skill, "committed fixer changes need a full-range re-review"
@@ -276,9 +277,25 @@ assert "Skip external review for Mercurial." in exec_skill, (
 assert "unless the user provided a Mercurial-native override" not in exec_skill, (
     "unsupported Mercurial external-review override is still advertised"
 )
-assert "script-owned `run-external-review:` marker" in exec_skill, (
+assert "If it exits 127 and stderr contains the script-owned `run-external-review:` marker" in exec_skill, (
     "tool-unavailable exit 127 is not distinguished from reviewer failure"
 )
+assert "Treat any other non-zero exit as reviewer failure" in exec_skill, (
+    "unmarked or non-127 reviewer failures are not rejected"
+)
+assert "Both\nmay come only from the user-level file" in exec_skill, (
+    "project configuration can select an executable or plan path"
+)
+assert "`external_review_iterations`, and `finalize_enabled`." in exec_skill, (
+    "project configuration can override an untrusted key"
+)
+assert "`task_retries` from 0 through 3" in exec_skill, "task retries have no upper bound"
+assert "`review_iterations` and `external_review_iterations` from 0 through 10" in exec_skill, (
+    "review iterations have no upper bound"
+)
+implementation_modes = make_skill.rsplit("- **Implement**:", 1)[1].split("- **Done**:", 1)[0]
+assert implementation_modes.count("- **Interactive**:") == 1, "duplicate Interactive implementation mode"
+assert implementation_modes.count("- **Autonomous**:") == 1, "duplicate Autonomous implementation mode"
 
 hook_root = root / "plugins/codex/skill-eval/hooks"
 hook = json.loads((hook_root / "hooks.json").read_text())
@@ -450,6 +467,31 @@ token_rc=$?
 set -e
 test "$token_rc" -eq 127
 grep -Fq "external_review_cmd not on PATH: \${user_config.external_review_cmd}" "$TMP_ROOT/token.err"
+
+cat >"$FAKE_BIN/reviewer-127" <<'EOF'
+#!/bin/sh
+exit 127
+EOF
+cat >"$FAKE_BIN/reviewer-3" <<'EOF'
+#!/bin/sh
+exit 3
+EOF
+chmod +x "$FAKE_BIN/reviewer-127" "$FAKE_BIN/reviewer-3"
+
+set +e
+PATH="$FAKE_BIN:$PATH" bash "$CODEX_ROOT/planning/skills/exec/scripts/run-external-review.sh" \
+    "reviewer-127" "external prompt" >"$TMP_ROOT/reviewer-127.out" 2>"$TMP_ROOT/reviewer-127.err"
+reviewer_127_rc=$?
+PATH="$FAKE_BIN:$PATH" bash "$CODEX_ROOT/planning/skills/exec/scripts/run-external-review.sh" \
+    "reviewer-3" "external prompt" >"$TMP_ROOT/reviewer-3.out" 2>"$TMP_ROOT/reviewer-3.err"
+reviewer_3_rc=$?
+set -e
+test "$reviewer_127_rc" -eq 127
+test "$reviewer_3_rc" -eq 3
+test ! -s "$TMP_ROOT/reviewer-127.out"
+test ! -s "$TMP_ROOT/reviewer-127.err"
+test ! -s "$TMP_ROOT/reviewer-3.out"
+test ! -s "$TMP_ROOT/reviewer-3.err"
 
 hook_output="$(sh "$CODEX_ROOT/skill-eval/hooks/skill-forced-eval-hook.sh")"
 case "$hook_output" in
