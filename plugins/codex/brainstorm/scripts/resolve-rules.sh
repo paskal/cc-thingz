@@ -7,7 +7,7 @@
 #   2. $CODEX_HOME/cc-thingz/brainstorm/<filename> (user override)
 #
 # outputs file content to stdout if found, empty output if not
-# always exits 0
+# exits 1 when a project override resolves outside the working directory
 
 filename="$1"
 if [ -z "$filename" ]; then

@@ -42,7 +42,8 @@ planning:make add my Go testing rules to user-level planning rules
 4. Executes tasks sequentially — one subagent per task, commits after each
 5. Runs multi-phase review: comprehensive (iteration 1) then critical re-check loop → code smells → external review → critical-only
 6. Optional finalize: rebase and squash commits
-7. Run summary: completed tasks, review cycles, external-review outcome, VCS changes, and logged decisions or deviations
+7. Completes terminal actions: moves the plan, commits that move, and records the outcome
+8. Produces a run summary from the completed progress and VCS state
 
 ### Configuration
 Set user configuration in

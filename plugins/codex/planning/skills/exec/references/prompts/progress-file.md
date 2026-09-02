@@ -47,11 +47,15 @@ Started: <timestamp>
 [deviation] task N: <how the result differs from the plan> — <why>
 ```
 The orchestrator greps these markers at completion and reports them to the user (see the exec SKILL completion step), so the user learns every question the run answered on its own and why.
+`append-progress.sh` prefixes these entries with a timestamp, so the completion collector matches the
+markers anywhere on the line.
 
-**At completion:**
+**After terminal completion actions:**
 ```
----
-Completed: <timestamp>
+[completion] validation: <outcome>
+[completion] branch: <name>
+[completion] plan move: <outcome>
+completed
 ```
 
 ## How to pass it

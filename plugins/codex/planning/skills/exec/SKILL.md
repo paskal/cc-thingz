@@ -173,8 +173,8 @@ Skip external review for Mercurial unless the user provided a Mercurial-native o
 
 For Git, loop up to `external_review_iterations`:
 
-1. Resolve `prompts/codex-review.md`; substitute the first-iteration diff command as
-   `git diff DEFAULT_BRANCH...HEAD`, and later iterations as `git diff`.
+1. Resolve `prompts/codex-review.md`; substitute `DIFF_COMMAND` as
+   `git diff DEFAULT_BRANCH...HEAD` on every iteration so committed fixer changes remain visible.
 2. Write the resolved prompt to `/tmp/external-review-<plan-name>.txt` using a safe file-writing
    tool so backticks and dollar signs remain literal.
 3. Run `run-external-review.sh`, passing `external_review_cmd` as the first argument and the prompt
@@ -198,21 +198,23 @@ launch one finaliser subagent to fetch, rebase on the current upstream default b
 commits, and run final validation. A conflict must be resolved safely or aborted cleanly. Never
 push.
 
-## Step 12: Produce statistics
+## Step 12: Complete terminal actions
 
-Resolve `prompts/stats.md` and launch one summary subagent. It reads the progress file and Git state,
-not private session transcripts, and reports task counts, review cycles, autonomous decisions,
-validation, and branch diff statistics. This phase is best effort and does not block completion.
+1. Collect every progress line matching `grep -E '\[(decision|deviation)\]'` for the completion
+   fallback. Timestamped lines place these markers after the timestamp. Say explicitly when none
+   were logged.
+2. Run `move-plan.sh` to move the plan into its sibling `completed/` directory and commit that move.
+   Capture its output and exit status without hiding a failure.
+3. Append `[completion] validation: <outcome>`, `[completion] branch: <name>`, and
+   `[completion] plan move: <outcome>` to the progress file, then append `completed`.
 
-## Step 13: Complete
+## Step 13: Produce run summary
 
-1. Collect every progress line beginning with `[decision]` or `[deviation]` and show them under
-   `Decisions made autonomously / Deviations from the plan`. Say explicitly when none were logged.
-2. Append `completed` to the progress file.
-3. Run `move-plan.sh` to move the plan into its sibling `completed/` directory and commit that move.
-   Report failure without hiding it.
-4. Report the number of completed tasks, the final validation, current branch, progress-file path,
-   and whether the plan moved.
+Resolve `prompts/stats.md` and launch one summary subagent after the terminal actions. It reads the
+updated progress file and VCS state, not private session transcripts, and reports task counts,
+review cycles, autonomous decisions, validation, plan-move outcome, and final branch statistics.
+Show its complete output. This phase is best effort; if it fails, report the completion record and
+the decisions or deviations collected in Step 12 instead.
 
 ## Invariants
 

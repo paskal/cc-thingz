@@ -255,6 +255,22 @@ planning_root = root / "plugins/codex/planning"
 missing = sorted(path for path in planning_files if not (planning_root / path).is_file())
 assert not missing, f"planning package is missing: {missing}"
 
+exec_skill = (planning_root / "skills/exec/SKILL.md").read_text()
+external_review_prompt = (planning_root / "skills/exec/references/prompts/codex-review.md").read_text()
+stats_prompt = (planning_root / "skills/exec/references/prompts/stats.md").read_text()
+assert "later iterations as `git diff`" not in exec_skill, "committed fixer changes need a full-range re-review"
+assert "Every iteration uses `DIFF_COMMAND` = `git diff DEFAULT_BRANCH...HEAD`" in external_review_prompt, (
+    "external review prompt does not preserve committed fixer changes"
+)
+assert exec_skill.index("## Step 12: Complete terminal actions") < exec_skill.index(
+    "## Step 13: Produce run summary"
+), "run summary occurs before terminal completion actions"
+assert "grep -E '\\[(decision|deviation)\\]'" in exec_skill, (
+    "completion collector does not match timestamped decision markers"
+)
+assert "- Plan move: <outcome or n/a>" in stats_prompt, "run summary omits the plan-move outcome"
+assert "- Progress file: PROGRESS_FILE_PATH" in stats_prompt, "run summary omits its progress file"
+
 hook_root = root / "plugins/codex/skill-eval/hooks"
 hook = json.loads((hook_root / "hooks.json").read_text())
 command = hook["hooks"]["UserPromptSubmit"][0]["hooks"][0]["command"]
@@ -336,6 +352,17 @@ set -e
 test "$prompt_symlink_rc" -ne 0
 test -z "$actual"
 grep -Fq "refusing project override outside working directory" "$TMP_ROOT/prompt-symlink.err"
+
+PROGRESS_FILE="$TMP_ROOT/progress.log"
+bash "$CODEX_ROOT/planning/skills/exec/scripts/append-progress.sh" \
+    "$PROGRESS_FILE" "[decision] task 1: use the smaller option"
+bash "$CODEX_ROOT/planning/skills/exec/scripts/append-progress.sh" \
+    "$PROGRESS_FILE" "[deviation] task 1: skipped unavailable deployment"
+decision_lines="$(grep -E '\[(decision|deviation)\]' "$PROGRESS_FILE")"
+case "$decision_lines" in
+    *"[decision] task 1: use the smaller option"*"[deviation] task 1: skipped unavailable deployment"*) ;;
+    *) echo "completion collector missed timestamped decision markers" >&2; exit 1 ;;
+esac
 
 CUSTOM_WORK="$TMP_ROOT/custom-work"
 mkdir -p "$CUSTOM_WORK"
