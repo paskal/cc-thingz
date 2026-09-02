@@ -466,7 +466,21 @@ CAPTURE="$CAPTURE" PATH="$FAKE_BIN:$PATH" \
 token_rc=$?
 set -e
 test "$token_rc" -eq 127
-grep -Fq "external_review_cmd not on PATH: \${user_config.external_review_cmd}" "$TMP_ROOT/token.err"
+grep -Fq "error: run-external-review: external_review_cmd not on PATH: \${user_config.external_review_cmd}" \
+    "$TMP_ROOT/token.err"
+
+NO_CODEX_BIN="$TMP_ROOT/no-codex-bin"
+mkdir -p "$NO_CODEX_BIN"
+ln -s "$(command -v dirname)" "$NO_CODEX_BIN/dirname"
+set +e
+PATH="$NO_CODEX_BIN" /bin/bash "$CODEX_ROOT/planning/skills/exec/scripts/run-external-review.sh" \
+    "" "external prompt" >"$TMP_ROOT/no-codex.out" 2>"$TMP_ROOT/no-codex.err"
+no_codex_rc=$?
+set -e
+test "$no_codex_rc" -eq 127
+test ! -s "$TMP_ROOT/no-codex.out"
+grep -Fq "error: run-external-review: codex not on PATH and external_review_cmd is not set" \
+    "$TMP_ROOT/no-codex.err"
 
 cat >"$FAKE_BIN/reviewer-127" <<'EOF'
 #!/bin/sh
