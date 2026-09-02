@@ -27,8 +27,17 @@ data_dir="$codex_home/cc-thingz/planning/exec-plan"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SKILL_ROOT="$(dirname "$SCRIPT_DIR")"
 
-if [ -f ".codex/exec-plan/$path" ]; then
-    cat ".codex/exec-plan/$path"
+project_file=".codex/exec-plan/$path"
+if [ -f "$project_file" ]; then
+    project_root="$(pwd -P)"
+    resolved_project_file="$(realpath "$project_file")"
+    case "$resolved_project_file" in
+        "$project_root"/*) cat "$resolved_project_file" ;;
+        *)
+            echo "error: refusing project override outside working directory: $project_file" >&2
+            exit 1
+            ;;
+    esac
 elif [ -f "$data_dir/$path" ]; then
     cat "$data_dir/$path"
 elif [ -f "$SKILL_ROOT/references/$path" ]; then

@@ -54,6 +54,65 @@ expected_skills = {
     "thinking-tools": {"ask-codex", "dialectic", "root-cause-investigator"},
     "workflow": {"backlog", "clarify", "learn", "md-copy", "txt-copy", "wrong"},
 }
+component_pairs = {
+    "plugins/brainstorm/skills/brainstorm/SKILL.md": "plugins/codex/brainstorm/skills/brainstorm/SKILL.md",
+    "plugins/planning/agents/plan-review.md": "plugins/codex/planning/skills/plan-review/SKILL.md",
+    "plugins/planning/commands/make.md": "plugins/codex/planning/skills/make/SKILL.md",
+    "plugins/planning/skills/exec/SKILL.md": "plugins/codex/planning/skills/exec/SKILL.md",
+    "plugins/release-tools/skills/last-tag/SKILL.md": "plugins/codex/release-tools/skills/last-tag/SKILL.md",
+    "plugins/release-tools/skills/new/SKILL.md": "plugins/codex/release-tools/skills/new/SKILL.md",
+    "plugins/review/skills/git-review/SKILL.md": "plugins/codex/review/skills/git-review/SKILL.md",
+    "plugins/review/skills/pr/SKILL.md": "plugins/codex/review/skills/pr/SKILL.md",
+    "plugins/review/skills/writing-style/SKILL.md": "plugins/codex/review/skills/writing-style/SKILL.md",
+    "plugins/skill-eval/hooks/hooks.json": "plugins/codex/skill-eval/hooks/hooks.json",
+    "plugins/thinking-tools/skills/ask-codex/SKILL.md": "plugins/codex/thinking-tools/skills/ask-codex/SKILL.md",
+    "plugins/thinking-tools/skills/dialectic/SKILL.md": "plugins/codex/thinking-tools/skills/dialectic/SKILL.md",
+    "plugins/thinking-tools/skills/root-cause-investigator/SKILL.md": "plugins/codex/thinking-tools/skills/root-cause-investigator/SKILL.md",
+    "plugins/workflow/skills/backlog/SKILL.md": "plugins/codex/workflow/skills/backlog/SKILL.md",
+    "plugins/workflow/skills/clarify/SKILL.md": "plugins/codex/workflow/skills/clarify/SKILL.md",
+    "plugins/workflow/skills/learn/SKILL.md": "plugins/codex/workflow/skills/learn/SKILL.md",
+    "plugins/workflow/skills/md-copy/SKILL.md": "plugins/codex/workflow/skills/md-copy/SKILL.md",
+    "plugins/workflow/skills/txt-copy/SKILL.md": "plugins/codex/workflow/skills/txt-copy/SKILL.md",
+    "plugins/workflow/skills/wrong/SKILL.md": "plugins/codex/workflow/skills/wrong/SKILL.md",
+}
+claude_only_components = {
+    # Codex replaces these prompt and agent hook handlers with the mapped planning skills.
+    "plugins/planning/hooks/hooks.json",
+}
+codex_only_components = {
+    # Codex exposes the skill-eval hook instructions as both a trusted hook and a skill.
+    "plugins/codex/skill-eval/skills/skill-eval/SKILL.md",
+}
+
+
+def is_component(path):
+    return (
+        path.name == "SKILL.md"
+        or (path.parent.name in {"agents", "commands"} and path.suffix == ".md")
+        or (path.parent.name == "hooks" and path.name == "hooks.json")
+    )
+
+
+claude_components = {
+    path.relative_to(root).as_posix()
+    for path in (root / "plugins").rglob("*")
+    if path.is_file() and "plugins/codex/" not in path.as_posix() and is_component(path)
+}
+codex_components = {
+    path.relative_to(root).as_posix()
+    for path in (root / "plugins/codex").rglob("*")
+    if path.is_file() and is_component(path)
+}
+assert claude_components == set(component_pairs) | claude_only_components, (
+    f"Claude component parity classification differs: "
+    f"unclassified={sorted(claude_components - set(component_pairs) - claude_only_components)}, "
+    f"stale={sorted((set(component_pairs) | claude_only_components) - claude_components)}"
+)
+assert codex_components == set(component_pairs.values()) | codex_only_components, (
+    f"Codex component parity classification differs: "
+    f"unclassified={sorted(codex_components - set(component_pairs.values()) - codex_only_components)}, "
+    f"stale={sorted((set(component_pairs.values()) | codex_only_components) - codex_components)}"
+)
 
 names = {entry["name"] for entry in entries}
 assert names == expected, f"marketplace names differ: {sorted(names)}"
@@ -241,6 +300,42 @@ mkdir -p "$WORK_DIR/.codex/exec-plan/prompts"
 printf 'project task prompt\n' >"$WORK_DIR/.codex/exec-plan/prompts/task.md"
 actual="$(cd "$WORK_DIR" && CODEX_HOME="$CODEX_HOME" bash "$CODEX_ROOT/planning/skills/exec/scripts/resolve-file.sh" prompts/task.md)"
 test "$actual" = "project task prompt"
+
+SYMLINK_WORK="$TMP_ROOT/symlink-work"
+OUTSIDE_FILE="$TMP_ROOT/outside-secret"
+mkdir -p "$SYMLINK_WORK/.codex/exec-plan/prompts"
+printf 'outside secret\n' >"$OUTSIDE_FILE"
+ln -s "$OUTSIDE_FILE" "$SYMLINK_WORK/.codex/brainstorm-rules.md"
+ln -s "$OUTSIDE_FILE" "$SYMLINK_WORK/.codex/planning-rules.md"
+ln -s "$OUTSIDE_FILE" "$SYMLINK_WORK/.codex/exec-plan/prompts/task.md"
+
+set +e
+actual="$(cd "$SYMLINK_WORK" && CODEX_HOME="$CODEX_HOME" \
+    bash "$CODEX_ROOT/brainstorm/scripts/resolve-rules.sh" brainstorm-rules.md 2>"$TMP_ROOT/brainstorm-symlink.err")"
+brainstorm_symlink_rc=$?
+set -e
+test "$brainstorm_symlink_rc" -ne 0
+test -z "$actual"
+grep -Fq "refusing project rules outside working directory" "$TMP_ROOT/brainstorm-symlink.err"
+
+set +e
+actual="$(cd "$SYMLINK_WORK" && CODEX_HOME="$CODEX_HOME" \
+    bash "$CODEX_ROOT/planning/scripts/resolve-rules.sh" planning-rules.md 2>"$TMP_ROOT/planning-symlink.err")"
+planning_symlink_rc=$?
+set -e
+test "$planning_symlink_rc" -ne 0
+test -z "$actual"
+grep -Fq "refusing project rules outside working directory" "$TMP_ROOT/planning-symlink.err"
+
+set +e
+actual="$(cd "$SYMLINK_WORK" && CODEX_HOME="$CODEX_HOME" \
+    bash "$CODEX_ROOT/planning/skills/exec/scripts/resolve-file.sh" prompts/task.md \
+    2>"$TMP_ROOT/prompt-symlink.err")"
+prompt_symlink_rc=$?
+set -e
+test "$prompt_symlink_rc" -ne 0
+test -z "$actual"
+grep -Fq "refusing project override outside working directory" "$TMP_ROOT/prompt-symlink.err"
 
 CUSTOM_WORK="$TMP_ROOT/custom-work"
 mkdir -p "$CUSTOM_WORK"
