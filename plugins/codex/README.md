@@ -49,6 +49,17 @@ paths:
 - Planning prompt overrides live in `.codex/exec-plan/` at project level or
   `${CODEX_HOME:-$HOME/.codex}/cc-thingz/planning/exec-plan/` at user level.
 
+To start an override from a bundled planning prompt, resolve the planning plugin root from the
+`planning:exec` skill's absolute catalogue path, then run:
+
+```bash
+bash "<planning-plugin-root>/skills/exec/scripts/customize-file.sh" prompts/review.md
+bash "<planning-plugin-root>/skills/exec/scripts/customize-file.sh" prompts/review.md --user
+```
+
+The first command writes a project override; the second writes a user override. See the
+[planning usage reference](planning/references/usage.md#customization) for the precedence rules.
+
 Codex skips `prompt` and `agent` hook handlers. The planning plugin therefore exposes plan creation
 and review as explicit skills. Codex does run trusted command hooks, so skill-eval preserves its
 `UserPromptSubmit` behaviour through `hooks/hooks.json`; review and trust that hook through `/hooks`

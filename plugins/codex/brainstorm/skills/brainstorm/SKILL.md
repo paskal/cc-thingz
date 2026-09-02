@@ -88,20 +88,11 @@ Do not present entire design at once. Incremental validation catches misundersta
 
 After design is validated, ask the user to choose one option:
 
-```json
-{
-  "questions": [{
-    "question": "Design looks complete. What's next?",
-    "header": "Next step",
-    "options": [
-      {"label": "Write plan", "description": "Create docs/plans/yyyymmdd-<task-name>.md with the planning:make skill"},
-      {"label": "Inline plan", "description": "Prepare a structured implementation plan for approval"},
-      {"label": "Start now", "description": "Begin implementing directly"}
-    ],
-    "multiSelect": false
-  }]
-}
-```
+Offer these choices in one multiple-choice question:
+
+- **Write plan**: create `docs/plans/yyyymmdd-<task-name>.md` with the `planning:make` skill
+- **Inline plan**: prepare a structured implementation plan for approval
+- **Start now**: begin implementing directly
 
 - **Write plan**: invoke the `planning:make` skill to create the plan file. Pass brainstorm context (discovered files, selected approach, design decisions) so it has full context without re-asking questions
 - **Inline plan**: prepare a detailed plan in the conversation and obtain approval

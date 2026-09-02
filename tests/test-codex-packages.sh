@@ -7,6 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 MARKETPLACE="$REPO_ROOT/.agents/plugins/marketplace.json"
 CODEX_ROOT="$REPO_ROOT/plugins/codex"
+VALIDATOR_ROOT="$REPO_ROOT/.github/scripts/codex-validators"
 
 TMP_ROOT="$(mktemp -d)"
 case "$TMP_ROOT" in
@@ -16,16 +17,21 @@ esac
 cleanup() { rm -rf "$TMP_ROOT"; }
 trap cleanup EXIT
 
+for plugin in "$CODEX_ROOT"/*; do
+    [ -d "$plugin" ] || continue
+    PYTHONDONTWRITEBYTECODE=1 python3 "$VALIDATOR_ROOT/validate_plugin.py" "$plugin"
+done
+
+while IFS= read -r -d '' skill_md; do
+    PYTHONDONTWRITEBYTECODE=1 python3 "$VALIDATOR_ROOT/quick_validate.py" "${skill_md%/SKILL.md}"
+done < <(find "$CODEX_ROOT" -path '*/skills/*/SKILL.md' -print0)
+
 python3 - "$REPO_ROOT" "$MARKETPLACE" <<'PY'
 import ast
 import json
 import os
 import pathlib
-import re
 import sys
-from urllib.parse import urlparse
-
-import yaml
 
 root = pathlib.Path(sys.argv[1])
 marketplace = json.loads(pathlib.Path(sys.argv[2]).read_text())
@@ -49,163 +55,28 @@ expected_skills = {
     "workflow": {"backlog", "clarify", "learn", "md-copy", "txt-copy", "wrong"},
 }
 
-semver = re.compile(
-    r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
-    r"(?:-(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\."
-    r"(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*)?"
-    r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$"
-)
-plugin_fields = {
-    "id", "name", "version", "description", "skills", "apps", "mcpServers",
-    "interface", "author", "homepage", "repository", "license", "keywords",
-}
-interface_fields = {
-    "displayName", "shortDescription", "longDescription", "developerName", "category",
-    "capabilities", "websiteURL", "privacyPolicyURL", "termsOfServiceURL", "brandColor",
-    "composerIcon", "logo", "logoDark", "screenshots", "defaultPrompt", "default_prompt",
-}
-skill_fields = {"name", "description", "license", "allowed-tools", "metadata"}
-
-
-def nonempty(value):
-    return isinstance(value, str) and bool(value.strip())
-
-
-def https_url(value):
-    parsed = urlparse(value) if isinstance(value, str) else None
-    return parsed is not None and parsed.scheme == "https" and bool(parsed.netloc)
-
-
-def contains_todo(value):
-    if isinstance(value, str):
-        return "[TODO:" in value
-    if isinstance(value, list):
-        return any(contains_todo(item) for item in value)
-    if isinstance(value, dict):
-        return any(contains_todo(item) for item in value.values())
-    return False
-
-
-def contract_path(value, expected):
-    if not isinstance(value, str):
-        return False
-    path = pathlib.PurePosixPath(value.replace("\\", "/"))
-    return not path.is_absolute() and path.as_posix().rstrip("/") == expected
-
-
-def load_companion(plugin_root, filename):
-    path = plugin_root / filename
-    assert path.is_file(), f"missing companion manifest: {path}"
-    value = json.loads(path.read_text())
-    assert isinstance(value, dict), f"companion manifest is not an object: {path}"
-    return value
-
-
-def validate_assets(plugin_root, interface):
-    paths = [interface[field] for field in ("composerIcon", "logo", "logoDark") if field in interface]
-    screenshots = interface.get("screenshots", [])
-    assert isinstance(screenshots, list), "interface.screenshots must be a list"
-    paths.extend(screenshots)
-    for value in paths:
-        assert nonempty(value), f"invalid asset path: {value!r}"
-        candidate = pathlib.PurePosixPath(value.replace("\\", "/"))
-        assert not candidate.is_absolute() and not any(part in {"", ".", ".."} for part in candidate.parts), value
-        resolved = (plugin_root / candidate.as_posix()).resolve()
-        assert resolved.is_relative_to(plugin_root.resolve()) and resolved.is_file(), value
-
-
-def validate_skill(skill_path):
-    content = skill_path.read_text()
-    match = re.match(r"^---\n(.*?)\n---(?:\n|$)", content, re.DOTALL)
-    assert match, f"invalid skill frontmatter delimiters: {skill_path}"
-    frontmatter = yaml.safe_load(match.group(1))
-    assert isinstance(frontmatter, dict), f"skill frontmatter is not an object: {skill_path}"
-    unknown = set(frontmatter) - skill_fields
-    assert not unknown, f"unsupported skill frontmatter in {skill_path}: {sorted(unknown)}"
-    name = frontmatter.get("name")
-    description = frontmatter.get("description")
-    assert nonempty(name), f"skill name is missing: {skill_path}"
-    assert re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", name), f"invalid skill name: {name}"
-    assert len(name) <= 64, f"skill name is too long: {name}"
-    assert name == skill_path.parent.name, f"skill directory and name differ: {skill_path}"
-    assert nonempty(description), f"skill description is missing: {skill_path}"
-    assert len(description.strip()) <= 1024, f"skill description is too long: {skill_path}"
-    assert "<" not in description and ">" not in description, f"skill description has angle brackets: {skill_path}"
-    assert not description.startswith("[TODO:"), f"skill description has a TODO: {skill_path}"
-
-
 names = {entry["name"] for entry in entries}
 assert names == expected, f"marketplace names differ: {sorted(names)}"
 assert set(marketplace) == {"name", "interface", "plugins"}
-assert nonempty(marketplace["name"])
+assert isinstance(marketplace["name"], str) and marketplace["name"].strip()
 assert set(marketplace["interface"]) == {"displayName"}
-assert nonempty(marketplace["interface"]["displayName"])
+assert isinstance(marketplace["interface"]["displayName"], str)
+assert marketplace["interface"]["displayName"].strip()
 
 for entry in entries:
     name = entry["name"]
     assert set(entry) == {"name", "source", "policy", "category"}, f"{name}: invalid marketplace entry"
     assert set(entry["source"]) == {"source", "path"}, f"{name}: invalid marketplace source"
     assert set(entry["policy"]) <= {"installation", "authentication", "products"}, name
-    assert nonempty(entry["category"]), f"{name}: marketplace category is missing"
+    assert isinstance(entry["category"], str) and entry["category"].strip(), name
     plugin_root = root / entry["source"]["path"]
     manifest = json.loads((plugin_root / ".codex-plugin/plugin.json").read_text())
     claude = json.loads((root / "plugins" / name / ".claude-plugin/plugin.json").read_text())
-    assert not contains_todo(manifest), f"{name}: manifest contains a TODO placeholder"
-    assert not set(manifest) - plugin_fields, f"{name}: unsupported manifest fields"
-    if "id" in manifest:
-        assert nonempty(manifest["id"]), f"{name}: id is empty"
     assert manifest["name"] == name
-    assert re.fullmatch(r"[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*", name), name
-    assert semver.fullmatch(manifest["version"]), f"{name}: version is not strict semver"
     assert manifest["version"] == claude["version"], name
-    assert nonempty(manifest.get("description")), f"{name}: description is missing"
-    author = manifest.get("author")
-    assert isinstance(author, dict) and not set(author) - {"name", "email", "url"}, f"{name}: invalid author"
-    assert nonempty(author.get("name")), f"{name}: author name is missing"
-    if "email" in author:
-        assert nonempty(author["email"]), f"{name}: author email is empty"
-    if "url" in author:
-        assert https_url(author["url"]), f"{name}: author URL is invalid"
-    assert all(nonempty(manifest.get(field)) for field in ("homepage", "repository", "license")), name
-    assert https_url(manifest["homepage"]) and https_url(manifest["repository"]), name
-    assert isinstance(manifest.get("keywords"), list) and all(nonempty(item) for item in manifest["keywords"]), name
     assert manifest["skills"] == "./skills/"
-    if "apps" in manifest:
-        assert contract_path(manifest["apps"], ".app.json"), f"{name}: invalid apps path"
-        app_manifest = load_companion(plugin_root, ".app.json")
-        assert set(app_manifest) == {"apps"} and isinstance(app_manifest["apps"], dict), name
-        for app_name, app in app_manifest["apps"].items():
-            assert nonempty(app_name) and isinstance(app, dict), f"{name}: invalid app entry"
-            assert not set(app) - {"id", "category"} and nonempty(app.get("id")), app_name
-            assert "category" not in app or nonempty(app["category"]), app_name
-    if "mcpServers" in manifest:
-        servers = manifest["mcpServers"]
-        if isinstance(servers, str):
-            assert contract_path(servers, ".mcp.json"), f"{name}: invalid MCP path"
-            mcp_manifest = load_companion(plugin_root, ".mcp.json")
-            assert set(mcp_manifest) == {"mcpServers"}, name
-            servers = mcp_manifest["mcpServers"]
-        assert isinstance(servers, dict), f"{name}: MCP servers must be an object"
-        assert all(nonempty(server_name) and isinstance(server, dict) for server_name, server in servers.items()), name
-    interface = manifest.get("interface")
-    assert isinstance(interface, dict) and not set(interface) - interface_fields, f"{name}: invalid interface"
-    for field in ("displayName", "shortDescription", "longDescription", "developerName", "category"):
-        assert nonempty(interface.get(field)), f"{name}: interface.{field} is missing"
-    assert isinstance(interface.get("capabilities"), list), f"{name}: capabilities must be a list"
-    assert all(nonempty(item) for item in interface["capabilities"]), f"{name}: invalid capability"
-    prompts = interface.get("defaultPrompt", interface.get("default_prompt"))
-    assert isinstance(prompts, list) and 1 <= len(prompts) <= 3, f"{name}: invalid default prompts"
-    assert all(nonempty(item) and len(item) <= 128 for item in prompts), f"{name}: invalid default prompt"
-    for field in ("websiteURL", "privacyPolicyURL", "termsOfServiceURL"):
-        if field in interface:
-            assert https_url(interface[field]), f"{name}: interface.{field} is invalid"
-    if "brandColor" in interface:
-        assert isinstance(interface["brandColor"], str) and re.fullmatch(r"#[0-9A-Fa-f]{6}", interface["brandColor"]), name
-    validate_assets(plugin_root, interface)
     skills = {path.parent.name for path in (plugin_root / "skills").glob("*/SKILL.md")}
     assert skills == expected_skills[name], f"{name}: {sorted(skills)}"
-    for skill in sorted((plugin_root / "skills").glob("*/SKILL.md")):
-        validate_skill(skill)
     assert entry["source"]["source"] == "local"
     assert entry["policy"]["installation"] == "AVAILABLE"
     assert entry["policy"]["authentication"] == "ON_INSTALL"
@@ -406,6 +277,20 @@ review prompt
 EOF
 cmp "$CAPTURE" "$TMP_ROOT/expected-args"
 
+CAPTURE="$CAPTURE" PATH="$FAKE_BIN:$PATH" CODEX_MODEL="" \
+    bash "$CODEX_ROOT/planning/skills/exec/scripts/run-codex.sh" "default prompt"
+cat >"$TMP_ROOT/expected-args" <<'EOF'
+exec
+--sandbox
+read-only
+-c
+model_reasoning_effort=xhigh
+-c
+stream_idle_timeout_ms=3600000
+default prompt
+EOF
+cmp "$CAPTURE" "$TMP_ROOT/expected-args"
+
 CAPTURE="$CAPTURE" PATH="$FAKE_BIN:$PATH" CODEX_NO_OVERRIDES=1 \
     bash "$CODEX_ROOT/planning/skills/exec/scripts/run-codex.sh" "proxy prompt"
 cat >"$TMP_ROOT/expected-args" <<'EOF'
@@ -425,6 +310,15 @@ CAPTURE="$CAPTURE" PATH="$FAKE_BIN:$PATH" \
     bash "$CODEX_ROOT/planning/skills/exec/scripts/run-external-review.sh" "reviewer --strict" "external prompt"
 printf '%s\n' '--strict' 'external prompt' >"$TMP_ROOT/expected-args"
 cmp "$CAPTURE" "$TMP_ROOT/expected-args"
+
+set +e
+CAPTURE="$CAPTURE" PATH="$FAKE_BIN:$PATH" \
+    bash "$CODEX_ROOT/planning/skills/exec/scripts/run-external-review.sh" \
+    '${user_config.external_review_cmd}' "external prompt" >"$TMP_ROOT/token.out" 2>"$TMP_ROOT/token.err"
+token_rc=$?
+set -e
+test "$token_rc" -eq 127
+grep -Fq "external_review_cmd not on PATH: \${user_config.external_review_cmd}" "$TMP_ROOT/token.err"
 
 hook_output="$(sh "$CODEX_ROOT/skill-eval/hooks/skill-forced-eval-hook.sh")"
 case "$hook_output" in

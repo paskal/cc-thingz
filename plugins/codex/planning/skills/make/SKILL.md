@@ -293,21 +293,12 @@ after creating the file, tell user: "created plan: `docs/plans/yyyymmdd-<task-na
 
 then ask the user to choose the next step:
 
-```json
-{
-  "questions": [{
-    "question": "Plan created. What's next?",
-    "header": "Next step",
-    "options": [
-      {"label": "Interactive review", "description": "Open plan in editor for manual annotation and feedback loop"},
-      {"label": "Auto review", "description": "Launch AI plan-review agent for automated analysis"},
-      {"label": "Implement", "description": "Commit plan and start implementing"},
-      {"label": "Done", "description": "Commit plan, no further action"}
-    ],
-    "multiSelect": false
-  }]
-}
-```
+Offer these choices in one multiple-choice question:
+
+- **Interactive review**: open the plan in an editor for a manual annotation and feedback loop
+- **Auto review**: run the `planning:plan-review` skill for automated analysis
+- **Implement**: commit the plan and start implementing
+- **Done**: commit the plan with no further action
 
 - **Interactive review**: check if `revdiff` is installed (`which revdiff`).
   - **if revdiff is available**: run `<plugin-root>/scripts/launch-plan-review.sh <plan-file-path>`.
@@ -331,20 +322,9 @@ then ask the user to choose the next step:
     4. repeat until no diff output (user closed editor without changes)
   when the annotation loop completes, ask again with the remaining options (minus "Interactive review")
 - **Auto review**: invoke the `planning:plan-review` skill in the current session. After review completes, ask again with the same options minus "Auto review"
-- **Implement**: commit plan with message like "docs: add <topic> implementation plan", then ask implementation mode:
-  ```json
-  {
-    "questions": [{
-      "question": "Implementation mode?",
-      "header": "Mode",
-      "options": [
-        {"label": "Interactive", "description": "Implement task by task in this session"},
-        {"label": "Autonomous", "description": "Run the planning:exec skill for autonomous execution with reviews"}
-      ],
-      "multiSelect": false
-    }]
-  }
-  ```
+- **Implement**: commit plan with message like "docs: add <topic> implementation plan", then offer two implementation modes in one multiple-choice question:
+  - **Interactive**: implement task by task in this session
+  - **Autonomous**: run the `planning:exec` skill for autonomous execution with reviews
   - **Interactive**: begin implementing task 1 interactively in this session. Maintain a task list and mark items completed immediately (do not batch)
   - **Autonomous**: invoke the `planning:exec` skill with the plan path for autonomous execution with multi-phase review
 - **Done**: commit plan with message like "docs: add <topic> implementation plan", stop
